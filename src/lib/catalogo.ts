@@ -88,3 +88,34 @@ export function destaques(n = 5): Produto[] {
   }
   return saida;
 }
+
+/** Tudo que o menu do topo precisa (calculado no servidor, entregue pronto ao cabeçalho). */
+export interface DadosMenu {
+  roupas: string[];
+  acessorios: string[];
+  marcas: string[];
+  destaques: Produto[];
+}
+export function dadosMenu(): DadosMenu {
+  const cats = categorias().map((c) => c.valor);
+  const tem = (c: string) => cats.includes(c);
+  return {
+    roupas: ["Camisetas", "Shorts", "Calças", "Casacos e Moletons"].filter(tem),
+    acessorios: ["Bonés", "Chinelos", "Bolsas e Mochilas", "Outros"].filter(tem),
+    marcas: marcas().slice(0, 12).map((m) => m.valor),
+    destaques: promocoes(2),
+  };
+}
+
+/** Foto representativa de cada categoria (para os blocos "Compre por categoria"). */
+export function fotoDaCategoria(cat: string): string | null {
+  const melhor = buscar({ categoria: cat, ordem: "novo" }).find((p) => p.foto);
+  return melhor?.foto ?? null;
+}
+
+export function maiorDesconto(): number {
+  return Math.max(0, ...TODOS.map((p) => (p.precoDe ? Math.round(((p.precoDe - p.preco) / p.precoDe) * 100) : 0)));
+}
+
+export const melhorOferta = (): Produto | null => promocoes(1)[0] ?? null;
+export const tenisEmOferta = (): Produto | null => buscar({ categoria: "Tênis", promo: true, ordem: "promo" }).find((p) => p.foto) ?? null;

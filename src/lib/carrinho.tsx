@@ -10,6 +10,9 @@ interface Ctx {
   quantidade: number;
   subtotal: number;
   pronto: boolean;
+  aberta: boolean;
+  abrir: () => void;
+  fechar: () => void;
   adicionar: (item: Omit<ItemCarrinho, "quantidade">, qtd?: number) => void;
   alterar: (ref: string, tamanho: string, qtd: number) => void;
   remover: (ref: string, tamanho: string) => void;
@@ -21,6 +24,9 @@ const CarrinhoCtx = createContext<Ctx | null>(null);
 export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [pronto, setPronto] = useState(false);
+  const [aberta, setAberta] = useState(false);
+  const abrir = useCallback(() => setAberta(true), []);
+  const fechar = useCallback(() => setAberta(false), []);
 
   // Lê depois da hidratação (nunca no estado inicial: o servidor não tem localStorage).
   useEffect(() => {
@@ -44,6 +50,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
       if (i < 0) return [...atual, { ...item, quantidade: qtd }];
       return atual.map((x, j) => (j === i ? { ...x, quantidade: Math.min(x.quantidade + qtd, 10) } : x));
     });
+    setAberta(true); // mostra a sacola lateral assim que adiciona
   }, []);
   const alterar: Ctx["alterar"] = useCallback((ref, tamanho, qtd) => {
     setItens((atual) =>
@@ -59,6 +66,9 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
     () => ({
       itens,
       pronto,
+      aberta,
+      abrir,
+      fechar,
       quantidade: itens.reduce((s, x) => s + x.quantidade, 0),
       subtotal: Math.round(itens.reduce((s, x) => s + x.preco * x.quantidade, 0) * 100) / 100,
       adicionar,
@@ -66,7 +76,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
       remover,
       limpar,
     }),
-    [itens, pronto, adicionar, alterar, remover, limpar],
+    [itens, pronto, aberta, abrir, fechar, adicionar, alterar, remover, limpar],
   );
   return <CarrinhoCtx.Provider value={valor}>{children}</CarrinhoCtx.Provider>;
 }
