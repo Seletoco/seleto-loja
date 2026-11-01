@@ -9,7 +9,7 @@ const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Seleto — loja online",
-  description: "Tênis, camisetas e acessórios das melhores marcas. Retire na loja Seleto.",
+  description: "Tênis, camisetas e acessórios das melhores marcas. Entregamos para todo o Brasil.",
   robots: { index: false, follow: false }, // ambiente de teste: fora do Google até aprovar
 };
 
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3">
               <div>
                 <p className="font-black tracking-[0.25em]">SELETO</p>
-                <p className="mt-2 text-fraco">Retire seu pedido em qualquer uma das nossas lojas.</p>
+                <p className="mt-2 text-fraco">Entregamos para todo o Brasil ou você retira em uma das nossas lojas.</p>
               </div>
               <div>
                 <p className="font-semibold">Lojas</p>

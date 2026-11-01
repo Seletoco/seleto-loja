@@ -70,3 +70,21 @@ export const promocoes = (n = 8) =>
 export function relacionados(p: Produto, n = 4): Produto[] {
   return TODOS.filter((x) => x.ref !== p.ref && x.categoria === p.categoria && x.marca === p.marca && x.foto).slice(0, n);
 }
+
+/**
+ * Produtos do carrossel da home: maiores descontos com foto, no máximo 1 por marca e categoria
+ * (senão o carrossel vira só chinelo). Se faltar, completa com novidades.
+ */
+export function destaques(n = 5): Produto[] {
+  const vistos = new Set<string>();
+  const saida: Produto[] = [];
+  const candidatos = [...buscar({ promo: true, ordem: "promo" }), ...TODOS.filter((p) => p.novo)].filter((p) => p.foto);
+  for (const p of candidatos) {
+    const chave = `${p.marca}|${p.categoria}`;
+    if (vistos.has(chave) || saida.some((x) => x.ref === p.ref)) continue;
+    vistos.add(chave);
+    saida.push(p);
+    if (saida.length === n) break;
+  }
+  return saida;
+}

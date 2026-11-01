@@ -42,7 +42,7 @@ export default function Checkout() {
     const tel = digitos(telefone);
     if (nome.trim().length < 3) return setErro("Informe seu nome completo.");
     if (tel.length < 10 || tel.length > 11) return setErro("Informe o celular com DDD.");
-    if (entrega === "entrega_combinada" && endereco.trim().length < 8) return setErro("Informe o endereço para combinarmos a entrega.");
+    if (entrega === "entrega_combinada" && endereco.trim().length < 8) return setErro("Informe o CEP e o endereço completo para a entrega.");
     // Pedido de EXEMPLO: fica só neste navegador. Ao ligar o banco, grava em loja.pedidos.
     const numero = Number(String(Date.now()).slice(-7));
     const pedido: PedidoSalvo = {
@@ -86,9 +86,9 @@ export default function Checkout() {
               ))}
             </select>
           ) : null}
-          <Escolha ativo={entrega === "entrega_combinada"} onClick={() => setEntrega("entrega_combinada")} titulo="Entrega combinada" texto="Combinamos valor e prazo pelo WhatsApp." />
+          <Escolha ativo={entrega === "entrega_combinada"} onClick={() => setEntrega("entrega_combinada")} titulo="Entrega para todo o Brasil" texto="Frete e prazo confirmados pela loja pelo WhatsApp antes de cobrar." />
           {entrega === "entrega_combinada" ? (
-            <textarea className="campo" rows={3} placeholder="Endereço completo, com bairro e CEP" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+            <textarea className="campo" rows={3} placeholder="CEP, endereço completo, número, bairro, cidade e estado" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
           ) : null}
         </Secao>
 
@@ -119,7 +119,7 @@ export default function Checkout() {
         <hr className="border-borda" />
         <Linha rotulo="Subtotal" valor={reais(subtotal)} />
         {desconto > 0 ? <Linha rotulo={`Desconto ${forma.rotulo}`} valor={`- ${reais(desconto)}`} /> : null}
-        <Linha rotulo="Entrega" valor="A combinar / grátis" />
+        <Linha rotulo="Entrega" valor={entrega === "retirada_loja" ? "Grátis (retirada)" : "Frete a confirmar"} />
         <div className="flex justify-between text-lg font-black"><span>Total</span><span>{reais(total)}</span></div>
         {erro ? <p className="text-sm text-promo">{erro}</p> : null}
         <button type="submit" className="btn w-full">Fazer pedido</button>

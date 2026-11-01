@@ -43,7 +43,8 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
           </div>
           <AdicionarAoCarrinho p={p} />
           <ul className="space-y-1 rounded-lg border border-borda bg-painel p-4 text-sm text-fraco">
-            <li>Retire em qualquer loja Seleto, sem fila.</li>
+            <li>Entregamos para todo o Brasil — o frete e o prazo são confirmados no pedido.</li>
+            <li>Ou retire em qualquer loja Seleto, sem fila.</li>
             <li>A loja confirma a disponibilidade antes de separar o pedido.</li>
           </ul>
         </div>

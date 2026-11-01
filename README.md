@@ -6,8 +6,8 @@ Site separado do catálogo e do sistema em produção. **Não altera nada do que
 - Vitrine, busca/filtros, produto, carrinho, checkout, confirmação do pedido: **prontos**.
 - **Pagamento: só exemplo** (Pix, cartão, pagar na retirada), sem cobrança. Veja `src/lib/pagamento.ts`.
 - Pedidos de teste ficam **no navegador** (localStorage) até ligar o banco.
-- **Área do cliente** (`/conta`): celular + 4 últimos dígitos do CPF; 5 tentativas/hora por celular.
-  Em demonstração, use `21 99999-9999` e `1234`.
+- **Área do cliente** (`/conta`): celular + 3 primeiros dígitos do CPF; 5 tentativas/hora por celular.
+  Em demonstração, use `21 99999-9999` e `123`.
 - **Admin** (`/admin`): usuário `admin` / senha `seleto-teste-2026` (TESTE). Troque com `ADMIN_USUARIO`/`ADMIN_SENHA`.
 - Produtos hoje vêm de `data/produtos.json` (instantâneo do catálogo). Gerar de novo:
   `python3 scripts/gerar-dados.py /caminho/seleto-catalogo/cliente.html`

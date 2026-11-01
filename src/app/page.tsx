@@ -1,26 +1,15 @@
 import Link from "next/link";
 import { ProdutoCard } from "@/components/ProdutoCard";
-import { categorias, novidades, promocoes } from "@/lib/catalogo";
+import { Carrossel } from "@/components/Carrossel";
+import { FaixaEntrega } from "@/components/FaixaEntrega";
+import { categorias, destaques, novidades, promocoes } from "@/lib/catalogo";
 
 export default function Home() {
   const cats = categorias().filter((c) => c.valor !== "Outros").slice(0, 8);
   return (
     <div className="space-y-10">
-      <section className="rounded-xl border border-borda bg-painel px-6 py-10 text-center sm:py-14">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-fraco">Seleto</p>
-        <h1 className="mt-2 text-3xl font-black sm:text-5xl">Escolha online, retire na loja</h1>
-        <p className="mx-auto mt-3 max-w-xl text-fraco">
-          As melhores marcas com estoque das nossas lojas. Monte seu pedido e retire sem fila.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/produtos" className="btn">
-            Ver todos os produtos
-          </Link>
-          <Link href="/produtos?promo=1&ordem=promo" className="btn-claro">
-            Ofertas
-          </Link>
-        </div>
-      </section>
+      <FaixaEntrega />
+      <Carrossel produtos={destaques(5)} />
 
       <section>
         <h2 className="mb-3 text-lg font-bold">Categorias</h2>

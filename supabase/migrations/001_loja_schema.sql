@@ -95,11 +95,12 @@ SELECT right(regexp_replace(c.cliente_telefone, '\D', '', 'g'), 11) AS telefone,
  WHERE c.tipo = 'cashback' AND c.status = 'ativo' AND c.valor IS NOT NULL
    AND c.cliente_telefone IS NOT NULL AND c.cliente_telefone <> '';
 
--- Verificação de acesso à área do cliente: celular + 4 últimos dígitos do CPF (nunca o CPF inteiro).
+-- Verificação de acesso à área do cliente: celular + 3 primeiros dígitos do CPF (nunca o CPF inteiro). Migração 005 aplicou cpf_inicio3.
 CREATE OR REPLACE VIEW loja.v_cliente_verificacao AS
 SELECT right(regexp_replace(concat(p.ddd, p.celular), '\D', '', 'g'), 11) AS telefone,
        right(regexp_replace(p.cpf_cnpj, '\D', '', 'g'), 4) AS cpf_final4,
-       split_part(p.nome, ' ', 1) AS primeiro_nome
+       split_part(p.nome, ' ', 1) AS primeiro_nome,
+       left(regexp_replace(p.cpf_cnpj, '\D', '', 'g'), 3) AS cpf_inicio3
   FROM public.pdvnet_clientes p
  WHERE length(regexp_replace(coalesce(p.cpf_cnpj, ''), '\D', '', 'g')) = 11
    AND length(regexp_replace(coalesce(p.celular, ''), '\D', '', 'g')) BETWEEN 8 AND 9;

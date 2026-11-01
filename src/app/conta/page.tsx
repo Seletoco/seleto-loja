@@ -81,10 +81,10 @@ export default function Conta() {
       <h1 className="text-xl font-bold">Meu cashback</h1>
       <p className="text-sm text-fraco">Veja quanto você tem, quando libera e quando vence.</p>
       <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" required />
-      <input className="campo" placeholder="4 últimos dígitos do CPF" inputMode="numeric" maxLength={4} value={cpf} onChange={(e) => setCpf(e.target.value)} required />
+      <input className="campo" placeholder="3 primeiros dígitos do CPF" inputMode="numeric" maxLength={3} value={cpf} onChange={(e) => setCpf(e.target.value)} required />
       {erro ? <p className="text-sm text-promo">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Consultando…" : "Consultar"}</button>
-      <p className="text-xs text-fraco">Teste: celular 21 99999-9999 e CPF final 1234.</p>
+      <p className="text-xs text-fraco">Teste: celular 21 99999-9999 e CPF começando com 123.</p>
     </form>
   );
 }

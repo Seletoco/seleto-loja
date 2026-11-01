@@ -28,9 +28,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   }
   const telefone = soDigitos(corpo.telefone).slice(-11);
-  const cpf4 = soDigitos(corpo.cpf).slice(-4);
-  if (telefone.length < 10 || cpf4.length !== 4) {
-    return NextResponse.json({ erro: "Informe o celular com DDD e os 4 últimos dígitos do CPF." }, { status: 400 });
+  const cpf3 = soDigitos(corpo.cpf).slice(0, 3);
+  if (telefone.length < 10 || cpf3.length !== 3) {
+    return NextResponse.json({ erro: "Informe o celular com DDD e os 3 primeiros dígitos do CPF." }, { status: 400 });
   }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
 
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const recentes = (memoria.get(telefone) ?? []).filter((t) => agora - t < 3_600_000);
     if (recentes.length >= LIMITE_TENTATIVAS) return NextResponse.json({ erro: "Muitas tentativas. Tente novamente mais tarde." }, { status: 429 });
     memoria.set(telefone, [...recentes, agora]);
-    if (telefone === "21999999999" && cpf4 === "1234") {
+    if (telefone === "21999999999" && cpf3 === "123") {
       const dia = (n: number) => new Date(agora + n * 86_400_000).toISOString().slice(0, 10);
       const demo: RespostaConta = {
         nome: "Cliente Demonstração",
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       };
       return NextResponse.json(demo);
     }
-    return NextResponse.json({ erro: "Dados não conferem. (Modo demonstração: use 21 99999-9999 e 1234.)" }, { status: 401 });
+    return NextResponse.json({ erro: "Dados não conferem. (Modo demonstração: use 21 99999-9999 e 123.)" }, { status: 401 });
   }
 
   // ---------- banco ligado ----------
@@ -65,8 +65,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "Muitas tentativas. Tente novamente mais tarde." }, { status: 429 });
   }
   const { rows: cli } = await banco.query<{ primeiro_nome: string }>(
-    `SELECT primeiro_nome FROM loja.v_cliente_verificacao WHERE telefone = $1 AND cpf_final4 = $2 LIMIT 1`,
-    [telefone, cpf4],
+    `SELECT primeiro_nome FROM loja.v_cliente_verificacao WHERE telefone = $1 AND cpf_inicio3 = $2 LIMIT 1`,
+    [telefone, cpf3],
   );
   await banco.query(`INSERT INTO loja.tentativas_login (telefone, ip, ok) VALUES ($1, $2, $3)`, [telefone, ip, cli.length > 0]);
   if (cli.length === 0) return NextResponse.json({ erro: "Dados não conferem." }, { status: 401 });
