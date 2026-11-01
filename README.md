@@ -1,36 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Seleto — loja online (ambiente de teste)
 
-## Getting Started
+Site separado do catálogo e do sistema em produção. **Não altera nada do que está rodando.**
 
-First, run the development server:
+## Estado
+- Vitrine, busca/filtros, produto, carrinho, checkout, confirmação do pedido: **prontos**.
+- **Pagamento: só exemplo** (Pix, cartão, pagar na retirada), sem cobrança. Veja `src/lib/pagamento.ts`.
+- Pedidos de teste ficam **no navegador** (localStorage) até ligar o banco.
+- **Área do cliente** (`/conta`): celular + 4 últimos dígitos do CPF; 5 tentativas/hora por celular.
+  Em demonstração, use `21 99999-9999` e `1234`.
+- **Admin** (`/admin`): usuário `admin` / senha `seleto-teste-2026` (TESTE). Troque com `ADMIN_USUARIO`/`ADMIN_SENHA`.
+- Produtos hoje vêm de `data/produtos.json` (instantâneo do catálogo). Gerar de novo:
+  `python3 scripts/gerar-dados.py /caminho/seleto-catalogo/cliente.html`
 
+## Banco (plano A: mesmo Supabase, esquema `loja`)
+`supabase/migrations/001_loja_schema.sql` (já aplicada) cria o esquema `loja`, 3 tabelas novas e views de **leitura**
+(`v_produtos`, `v_variacoes`, `v_cashback`, `v_cliente_verificacao`) e o perfil `loja_app` (sem login).
+Para ligar: rode `002_ligar_perfil_loja_app.sql` no SQL Editor com uma senha sua e defina `LOJA_DATABASE_URL` na Vercel.
+
+## Riscos conhecidos
+- O estoque do banco atrasa algumas horas: só vendemos variação com 2+ em estoque; a loja confirma antes de separar.
+- Pedido não dá baixa sozinho no PDVNet: a equipe baixa à mão.
+- NF-e, frete automático e páginas legais (LGPD, trocas) ainda por fazer.
+
+## Rodar
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev     # http://localhost:3000
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
+/* Tema "papel" do catálogo: fundo bege, cards brancos, texto quase preto.
+   Cor só com significado: vermelho = promoção/falta, verde = disponível. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --papel: #f4f2ee;
+  --painel: #ffffff;
+  --borda: #e0ddd6;
+  --texto: #1a1a1a;
+  --fraco: #6b6862;
+  --tenue: #faf9f7;
+  --promo: #b3261e;
+  --ok: #1e6b3a;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-papel: var(--papel);
+  --color-painel: var(--painel);
+  --color-borda: var(--borda);
+  --color-texto: var(--texto);
+  --color-fraco: var(--fraco);
+  --color-tenue: var(--tenue);
+  --color-promo: var(--promo);
+  --color-ok: var(--ok);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--papel);
+  color: var(--texto);
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-md border border-texto bg-texto px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40;
+}
+.btn-claro {
+  @apply inline-flex items-center justify-center rounded-md border border-borda bg-painel px-4 py-2.5 text-sm font-semibold text-texto transition hover:border-texto;
+}
+.campo {
+  @apply w-full rounded-md border border-borda bg-painel px-3 py-2.5 text-sm outline-none focus:border-texto;
 }
