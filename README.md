@@ -27,3 +27,10 @@ Para ligar: rode `002_ligar_perfil_loja_app.sql` no SQL Editor com uma senha sua
 npm install
 npm run dev     # http://localhost:3000
 ```
+
+## Logos das marcas (home → "Compre por marca")
+Cada botão usa a logo da marca se existir o arquivo `public/marcas/<nome>.svg` (ou `.png`, `.webp`, `.jpg`),
+onde `<nome>` é o nome da marca em minúsculas, sem acento, espaço ou símbolo. Sem o arquivo, o botão mostra o nome
+em letras grandes. Já incluídas: `adidas`, `nike`, `newbalance`, `fila`.
+Faltam (use a logo oficial do kit de revendedor de cada marca): `farm`, `thugnine`, `champion`, `barracrew`, `vans`,
+`approve`, `rafrow`, `newera`. Prefira SVG preto (o botão inverte para branco no mouse) ou PNG preto com fundo transparente.

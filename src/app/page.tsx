@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Fileira } from "@/components/Fileira";
+import { MarcasEmDestaque } from "@/components/MarcasEmDestaque";
 import { Hero, type Slide } from "@/components/Hero";
 import { Reveal } from "@/components/Reveal";
-import { buscar, categorias, fotoDaCategoria, maiorDesconto, marcas, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
+import { buscar, categorias, fotoDaCategoria, maiorDesconto, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
 
 export default function Home() {
   const slides: Slide[] = [
@@ -46,8 +47,7 @@ export default function Home() {
   ];
 
   const cats = categorias().filter((c) => !["Outros", "Farm"].includes(c.valor)).slice(0, 4);
-  const marcasTop = marcas().slice(0, 14).map((m) => m.valor);
-
+  
   return (
     <div className="space-y-14 pb-4 sm:space-y-20">
       <Hero slides={slides} />
@@ -67,16 +67,11 @@ export default function Home() {
         ))}
       </section>
 
-      {/* marcas rolando */}
-      <div className="overflow-hidden border-y border-texto py-3" aria-hidden>
-        <div className="rolando flex w-max gap-12 whitespace-nowrap">
-          {[...marcasTop, ...marcasTop].map((m, i) => (
-            <span key={i} className="titulao text-4xl text-texto/90 sm:text-5xl">{m} <span className="text-promo">/</span></span>
-          ))}
-        </div>
-      </div>
-
       <div className="mx-auto max-w-[1500px] space-y-14 px-4 sm:space-y-20">
+        <Reveal>
+          <MarcasEmDestaque />
+        </Reveal>
+
         <Reveal>
           <h2 className="titulao mb-4 text-3xl sm:text-4xl">Compre por categoria</h2>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -122,17 +117,6 @@ export default function Home() {
           <Fileira titulo="Novidades" href="/produtos?ordem=novo" produtos={buscar({ ordem: "novo" }).filter((p) => p.novo && p.foto).slice(0, 12)} />
         </Reveal>
 
-        <Reveal>
-          <h2 className="titulao mb-4 text-3xl sm:text-4xl">Compre por marca</h2>
-          <div className="grid grid-cols-2 gap-px bg-borda sm:grid-cols-3 lg:grid-cols-4">
-            {marcas().slice(0, 8).map((m) => (
-              <Link key={m.valor} href={`/produtos?marca=${encodeURIComponent(m.valor)}`} className="group flex items-center justify-between bg-white px-6 py-8 transition hover:bg-texto hover:text-white">
-                <span className="titulao text-2xl sm:text-3xl">{m.valor}</span>
-                <span className="text-xs text-fraco group-hover:text-white/70">{m.n}</span>
-              </Link>
-            ))}
-          </div>
-        </Reveal>
       </div>
     </div>
   );
