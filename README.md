@@ -45,8 +45,9 @@ Hoje a consulta considera o cashback gerado pelo Seleto (`cashback_concessoes`);
 ## Frete pelos Correios (por CEP)
 Em "Entrega para todo o Brasil" o cliente digita o CEP: o endereço é preenchido (ViaCEP) e o frete é cotado em `/api/frete`.
 - **Com as credenciais do contrato dos Correios** (variáveis `CORREIOS_USUARIO`, `CORREIOS_CODIGO_ACESSO`, `CORREIOS_CARTAO_POSTAGEM`,
-  `CORREIOS_CONTRATO`, `CEP_ORIGEM`; opcional `CORREIOS_DR`), o preço e o prazo de PAC e SEDEX vêm da API dos Correios (`src/lib/correios.ts`).
+  `CORREIOS_CONTRATO`; opcionais `CORREIOS_DR` e `CEP_ORIGEM`), o preço e o prazo de PAC e SEDEX vêm da API dos Correios (`src/lib/correios.ts`).
   **Essa integração ainda não foi testada contra a API real** — confira na primeira cotação.
+- **Origem dos pedidos:** Av. Ayrton Senna, 2541 — Barra da Tijuca, Rio de Janeiro/RJ, **CEP 22631-004** (`CEP_ORIGEM_PADRAO`).
 - **Sem elas**, o site usa uma ESTIMATIVA DE EXEMPLO por região (`estimativaDeExemplo`), marcada como estimativa na tela e no pedido.
 - Peso e caixa vêm de valores assumidos por categoria em `src/lib/frete.ts` — ajuste conforme a realidade da loja.
 - Para frete grátis a partir de um valor, use `FRETE_GRATIS_ACIMA` (ainda desligado).

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { produtoPorRef } from "@/lib/catalogo";
-import { correiosConfigurado, cotarNosCorreios } from "@/lib/correios";
+import { cepDeOrigem, correiosConfigurado, cotarNosCorreios } from "@/lib/correios";
 import { cepValido, embalagemDoPedido, estimativaDeExemplo, ufDoCep, type OpcaoFrete } from "@/lib/frete";
 
 export interface RespostaFrete {
@@ -47,13 +47,13 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("[frete] Correios indisponível, usando estimativa:", e instanceof Error ? e.message : e);
       return NextResponse.json({
-        cep, uf, origem: "exemplo", opcoes: estimativaDeExemplo(uf, emb),
+        cep, uf, origem: "exemplo", opcoes: estimativaDeExemplo(uf, emb, ufDoCep(cepDeOrigem()) ?? "RJ"),
         aviso: "Não conseguimos consultar os Correios agora. Valores estimados — a loja confirma o frete antes de cobrar.",
       } satisfies RespostaFrete);
     }
   }
   return NextResponse.json({
-    cep, uf, origem: "exemplo", opcoes: estimativaDeExemplo(uf, emb),
+    cep, uf, origem: "exemplo", opcoes: estimativaDeExemplo(uf, emb, ufDoCep(cepDeOrigem()) ?? "RJ"),
     aviso: "Valores de exemplo (Correios ainda não configurado). A loja confirma o frete antes de cobrar.",
   } satisfies RespostaFrete);
 }

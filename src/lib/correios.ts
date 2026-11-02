@@ -2,8 +2,8 @@
  * Cotação de frete pela API dos Correios (CWS) — preço e prazo de PAC e SEDEX com contrato.
  *
  * LIGA SOZINHA quando as variáveis de ambiente existem (as credenciais são do CONTRATO da loja com os Correios):
- *   CORREIOS_USUARIO, CORREIOS_CODIGO_ACESSO, CORREIOS_CARTAO_POSTAGEM, CORREIOS_CONTRATO, CEP_ORIGEM
- *   (opcional: CORREIOS_DR = diretoria regional)
+ *   CORREIOS_USUARIO, CORREIOS_CODIGO_ACESSO, CORREIOS_CARTAO_POSTAGEM, CORREIOS_CONTRATO
+ *   (opcionais: CORREIOS_DR = diretoria regional; CEP_ORIGEM para trocar o CEP de origem)
  * Sem elas, `/api/frete` devolve a estimativa de exemplo.
  *
  * NÃO FOI TESTADA contra a API real (sem credenciais aqui). Foi escrita de forma defensiva: qualquer resposta fora do
@@ -18,10 +18,12 @@ const PRODUTOS: { servico: OpcaoFrete["servico"]; nome: string; coProduto: strin
   { servico: "SEDEX", nome: "SEDEX", coProduto: "03220" },
 ];
 
+/** De onde saem os pedidos: Av. Ayrton Senna, 2541 — Barra da Tijuca, Rio de Janeiro/RJ. */
+export const CEP_ORIGEM_PADRAO = "22631004";
+export const cepDeOrigem = (): string => (process.env.CEP_ORIGEM ?? CEP_ORIGEM_PADRAO).replace(/\D/g, "") || CEP_ORIGEM_PADRAO;
+
 export const correiosConfigurado = (): boolean =>
-  Boolean(
-    process.env.CORREIOS_USUARIO && process.env.CORREIOS_CODIGO_ACESSO && process.env.CORREIOS_CARTAO_POSTAGEM && process.env.CORREIOS_CONTRATO && process.env.CEP_ORIGEM,
-  );
+  Boolean(process.env.CORREIOS_USUARIO && process.env.CORREIOS_CODIGO_ACESSO && process.env.CORREIOS_CARTAO_POSTAGEM && process.env.CORREIOS_CONTRATO);
 
 let guardado: { token: string; ate: number } | null = null;
 
@@ -52,7 +54,7 @@ const numero = (v: unknown): number => {
 export async function cotarNosCorreios(cepDestino: string, emb: Embalagem): Promise<OpcaoFrete[]> {
   const t = await token();
   const cabecalho = { Authorization: `Bearer ${t}`, Accept: "application/json" };
-  const origem = String(process.env.CEP_ORIGEM).replace(/\D/g, "");
+  const origem = cepDeOrigem();
   const destino = cepDestino.replace(/\D/g, "");
 
   const opcoes = await Promise.all(
