@@ -43,7 +43,7 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
         <p><strong>Cliente:</strong> {pedido.cliente.nome} · {telefoneBonito(pedido.cliente.telefone)}</p>
         <p>
           <strong>Entrega:</strong>{" "}
-          {pedido.entrega.tipo === "retirada_loja" ? `Retirar na loja ${pedido.entrega.loja}` : `Entrega combinada — ${pedido.entrega.endereco}`}
+          {pedido.entrega.tipo === "retirada_loja" ? `Retirar na loja ${pedido.entrega.loja}` : `Entrega ${pedido.entrega.servico ?? ""} (até ${pedido.entrega.prazoDias ?? "—"} dias úteis) — ${pedido.entrega.endereco}`}
         </p>
         <p><strong>Pagamento:</strong> {pedido.pagamento.rotulo} (exemplo, sem cobrança)</p>
       </section>
@@ -56,6 +56,9 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
             </li>
           ))}
         </ul>
+        {pedido.frete > 0 ? (
+          <p className="mt-2 flex justify-between text-sm"><span>Frete {pedido.entrega.servico}{pedido.entrega.freteExemplo ? " (estimativa, a loja confirma)" : ""}</span><span>{reais(pedido.frete)}</span></p>
+        ) : null}
         {pedido.cashback ? (
           <p className="mt-2 flex justify-between text-sm"><span>Cashback utilizado (a loja confirma)</span><span>- {reais(pedido.cashback.usado)}</span></p>
         ) : null}

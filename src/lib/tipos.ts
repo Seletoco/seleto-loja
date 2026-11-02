@@ -26,7 +26,7 @@ export interface PedidoSalvo {
   criadoEm: string;
   itens: ItemCarrinho[];
   cliente: { nome: string; telefone: string; email: string };
-  entrega: { tipo: "retirada_loja" | "entrega_combinada"; loja?: string; endereco?: string };
+  entrega: { tipo: "retirada_loja" | "entrega_combinada"; loja?: string; endereco?: string; servico?: string; prazoDias?: number; freteExemplo?: boolean };
   pagamento: { metodo: string; rotulo: string };
   subtotal: number;
   /** Cashback abatido neste pedido (a loja confirma e dá baixa). */

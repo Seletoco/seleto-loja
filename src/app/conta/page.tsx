@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { dataBr, reais } from "@/lib/format";
+import { cpfValido, formatarCpf } from "@/lib/cpf";
 import type { RespostaConta } from "../api/conta/route";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
@@ -11,7 +12,6 @@ function diasAte(iso: string) {
 }
 
 export default function Conta() {
-  const [telefone, setTelefone] = useState("");
   const [cpf, setCpf] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -20,9 +20,10 @@ export default function Conta() {
   async function consultar(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+    if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
     setCarregando(true);
     try {
-      const r = await fetch("/api/conta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ telefone, cpf }) });
+      const r = await fetch("/api/conta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cpf }) });
       const j = await r.json();
       if (!r.ok) setErro(j.erro ?? "Não foi possível consultar.");
       else setDados(j);
@@ -79,12 +80,11 @@ export default function Conta() {
   return (
     <form onSubmit={consultar} className="mx-auto max-w-sm space-y-3 rounded-xl border border-borda bg-painel p-6">
       <h1 className="text-xl font-bold">Meu cashback</h1>
-      <p className="text-sm text-fraco">Veja quanto você tem, quando libera e quando vence.</p>
-      <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" required />
-      <input className="campo" placeholder="3 primeiros dígitos do CPF" inputMode="numeric" maxLength={3} value={cpf} onChange={(e) => setCpf(e.target.value)} required />
+      <p className="text-sm text-fraco">Digite seu CPF para ver se você é cliente Seleto, quanto tem de cashback, quando libera e quando vence.</p>
+      <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
       {erro ? <p className="text-sm text-promo">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Consultando…" : "Consultar"}</button>
-      <p className="text-xs text-fraco">Teste: celular 21 99999-9999 e CPF começando com 123.</p>
+      <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>
     </form>
   );
 }

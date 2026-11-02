@@ -46,7 +46,7 @@ export function PainelPedidos() {
             </div>
             <p>{p.cliente.nome} · {telefoneBonito(p.cliente.telefone)}</p>
             <p className="text-fraco">
-              {p.entrega.tipo === "retirada_loja" ? `Retirada: ${p.entrega.loja}` : `Entrega: ${p.entrega.endereco}`} · {p.pagamento.rotulo}
+              {p.entrega.tipo === "retirada_loja" ? `Retirada: ${p.entrega.loja}` : `Entrega ${p.entrega.servico ?? ""}${p.entrega.freteExemplo ? " (frete estimado — confirmar)" : ""}: ${p.entrega.endereco}`} · {p.pagamento.rotulo}
             </p>
             <ul className="text-fraco">
               {p.itens.map((i) => (
