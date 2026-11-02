@@ -53,6 +53,7 @@ export function PainelPedidos() {
                 <li key={i.ref + i.tamanho}>{i.quantidade}× {i.nome} (tam. {i.tamanho})</li>
               ))}
             </ul>
+            {p.cashback ? <p className="text-promo">Cashback a confirmar e dar baixa: {reais(p.cashback.usado)} ({telefoneBonito(p.cashback.telefone)})</p> : null}
             <p className="font-bold">{reais(p.total)}</p>
           </article>
         ))

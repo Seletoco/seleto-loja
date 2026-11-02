@@ -29,6 +29,8 @@ export interface PedidoSalvo {
   entrega: { tipo: "retirada_loja" | "entrega_combinada"; loja?: string; endereco?: string };
   pagamento: { metodo: string; rotulo: string };
   subtotal: number;
+  /** Cashback abatido neste pedido (a loja confirma e dá baixa). */
+  cashback?: { usado: number; telefone: string };
   frete: number;
   total: number;
   status: string;

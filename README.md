@@ -34,3 +34,11 @@ onde `<nome>` é o nome da marca em minúsculas, sem acento, espaço ou símbolo
 em letras grandes. Já incluídas: `adidas`, `nike`, `newbalance`, `fila`.
 Faltam (use a logo oficial do kit de revendedor de cada marca): `farm`, `thugnine`, `champion`, `barracrew`, `vans`,
 `approve`, `rafrow`, `newera`. Prefira SVG preto (o botão inverte para branco no mouse) ou PNG preto com fundo transparente.
+
+## Cashback no checkout
+No passo 3 do checkout o cliente confirma o celular dos seus dados + 3 primeiros dígitos do CPF (mesma verificação da área
+`/conta`, 5 tentativas/hora) e vê **"Pode usar agora"** x **"Libera em breve"**. Só dá para usar a partir da compra mínima.
+A regra fica em `src/lib/regra-cashback.ts` (`regraDeUso()`), hoje com VALORES DE EXEMPLO: compra mínima R$ 500 e teto de 100%
+do subtotal. Quando a regra passar a ser definida no sistema, troque só essa função por uma leitura do banco.
+O pedido guarda o cashback pedido; **a loja confirma e dá baixa** (a loja online não consome o saldo sozinha).
+Hoje a consulta considera o cashback gerado pelo Seleto (`cashback_concessoes`); os bônus do PDVNet ainda não entram.

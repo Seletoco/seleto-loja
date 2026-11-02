@@ -56,6 +56,9 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
             </li>
           ))}
         </ul>
+        {pedido.cashback ? (
+          <p className="mt-2 flex justify-between text-sm"><span>Cashback utilizado (a loja confirma)</span><span>- {reais(pedido.cashback.usado)}</span></p>
+        ) : null}
         <div className="mt-3 flex justify-between text-lg font-black"><span>Total</span><span>{reais(pedido.total)}</span></div>
       </section>
       <Link href="/produtos" className="btn-claro w-full">Continuar comprando</Link>
