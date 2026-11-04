@@ -63,55 +63,115 @@ function Login({ aoEntrar }: { aoEntrar: (d: DadosConta) => void }) {
   );
 }
 
+const COR_NIVEL: Record<string, string> = { Cliente: "#707072", Prata: "#9aa4b2", Ouro: "#d4af37", Diamante: "#7c3aed" };
+const ordem = ["Cliente", "Prata", "Ouro", "Diamante"];
+
+function Icone({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={d} />
+    </svg>
+  );
+}
+const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
+
 function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
   const [aba, setAba] = useState<Aba>("cashback");
   const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["nivel", "Meu nível"]];
+  const n = dados.nivel;
+  const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).reduce((s, c) => s + c.valor, 0);
+  const aLiberar = dados.cashbacks.filter((c) => diasAte(c.liberaEm) > 0).reduce((s, c) => s + c.valor, 0);
+  const proximoVence = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).map((c) => diasAte(c.venceEm)).sort((a, b) => a - b)[0];
+  const cor = COR_NIVEL[n.nome];
+  const alvo = n.proximo === "Prata" ? 1000 : n.proximo === "Ouro" ? 2000 : n.proximo === "Diamante" ? 4000 : 4000;
+  const pct = n.proximo ? Math.min(100, Math.round((n.gasto12m / alvo) * 100)) : 100;
   return (
-    <div className="mx-auto max-w-xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Olá, {dados.nome}!</h1>
-        <span className="rounded-full border border-borda bg-tenue px-3 py-1 text-xs font-semibold">{dados.nivel.nome}</span>
+    <div className="mx-auto max-w-5xl space-y-5">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-fraco">Minha conta</p>
+          <h1 className="titulao text-3xl sm:text-4xl">Olá, {dados.nome}</h1>
+        </div>
+        <button onClick={sair} className="text-xs font-bold uppercase tracking-wide text-fraco underline underline-offset-4 hover:text-texto">Sair</button>
       </div>
-      {dados.demo ? <p className="rounded-md border border-borda bg-tenue p-2 text-xs text-fraco">Dados de demonstração.</p> : null}
-      <div className="flex gap-2">
-        {abas.map(([k, t]) => (
-          <button key={k} onClick={() => setAba(k)} className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold ${aba === k ? "border-texto bg-texto text-white" : "border-borda bg-painel"}`}>{t}</button>
-        ))}
+      {dados.demo ? <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Dados de demonstração</p> : null}
+
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+        {/* coluna do resumo */}
+        <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
+          <section className="relative overflow-hidden bg-texto p-6 text-white">
+            <div className="pointer-events-none absolute -bottom-8 -right-8 h-20 w-20 rotate-12 bg-destaque" />
+            <p className="relative text-xs font-bold uppercase tracking-widest text-white/70">Cashback para usar agora</p>
+            <p className="relative mt-1 text-5xl font-black tracking-tight text-destaque">{reais(disponivel)}</p>
+            <div className="relative mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-4 text-sm">
+              <div>
+                <p className="text-xs text-white/60">Libera em breve</p>
+                <p className="font-bold">{reais(aLiberar)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Próximo vencimento</p>
+                <p className={`font-bold ${proximoVence !== undefined && proximoVence <= 7 ? "text-destaque" : ""}`}>{proximoVence === undefined ? "—" : proximoVence <= 0 ? "hoje" : `${proximoVence} ${proximoVence === 1 ? "dia" : "dias"}`}</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="border border-borda bg-painel p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-fraco">Seu nível</p>
+              <span className="px-3 py-1 text-xs font-black uppercase tracking-wide text-white" style={{ background: cor }}>{n.nome}</span>
+            </div>
+            <div className="mt-4 h-2 w-full bg-tenue">
+              <div className="h-2 transition-all" style={{ width: `${pct}%`, background: cor }} />
+            </div>
+            <div className="mt-2 flex justify-between text-[10px] font-bold uppercase tracking-wide text-fraco">
+              {ordem.map((o) => <span key={o} className={o === n.nome ? "text-texto" : ""}>{o}</span>)}
+            </div>
+            <p className="mt-3 text-sm">
+              {n.proximo ? <>Faltam <b>{reais(n.faltaGasto)}</b>{n.faltaCompras > 0 ? <> e <b>{n.faltaCompras} {n.faltaCompras === 1 ? "compra" : "compras"}</b></> : null} para o nível <b>{n.proximo}</b>.</> : "Você está no nível máximo. Obrigado!"}
+            </p>
+          </section>
+        </div>
+
+        {/* coluna do conteúdo */}
+        <div className="min-w-0 space-y-4">
+          <div className="grid grid-cols-3 border border-borda bg-painel">
+            {abas.map(([k, t]) => (
+              <button key={k} onClick={() => setAba(k)} className={`flex items-center justify-center gap-2 px-2 py-3 text-xs font-bold uppercase tracking-wide transition sm:text-sm ${aba === k ? "bg-texto text-white" : "hover:bg-tenue"}`}>
+                <Icone d={ICONES[k]} />
+                {t}
+              </button>
+            ))}
+          </div>
+          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : <AbaNivel dados={dados} />}
+        </div>
       </div>
-      {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : <AbaNivel dados={dados} />}
-      <button className="btn-claro w-full" onClick={sair}>Sair</button>
     </div>
   );
 }
 
 function AbaCashback({ dados }: { dados: DadosConta }) {
-  const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0);
-  const aLiberar = dados.cashbacks.filter((c) => diasAte(c.liberaEm) > 0);
-  const soma = (l: typeof dados.cashbacks) => l.reduce((s, c) => s + c.valor, 0);
   const usados = dados.extrato.filter((e) => e.saldo <= 0 || e.usou > 0);
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <Caixa titulo="Pode usar agora" valor={reais(soma(disponivel))} destaque />
-        <Caixa titulo="Libera em breve" valor={reais(soma(aLiberar))} />
-      </div>
+    <div className="space-y-5">
       {dados.cashbacks.length === 0 ? (
-        <p className="rounded-lg border border-borda bg-painel p-6 text-center text-fraco">Você não tem cashback no momento.</p>
+        <p className="border border-borda bg-painel p-8 text-center text-fraco">Você não tem cashback no momento. Ele aparece aqui depois da sua próxima compra.</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {dados.cashbacks.map((c, i) => {
             const libera = diasAte(c.liberaEm);
             const vence = diasAte(c.venceEm);
+            const pronto = libera <= 0;
+            const urgente = pronto && vence <= 7;
             return (
-              <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-borda bg-painel p-3">
-                <div>
-                  <p className="font-bold">{reais(c.valor)}</p>
-                  <p className="text-xs text-fraco">{libera > 0 ? `Libera em ${dataBr(c.liberaEm)} (${libera} ${libera === 1 ? "dia" : "dias"})` : "Liberado para uso"}</p>
+              <li key={i} className={`relative overflow-hidden border p-4 ${urgente ? "border-promo" : "border-borda"} bg-painel`}>
+                <span className={`absolute left-0 top-0 h-full w-1 ${pronto ? "bg-ok" : "bg-destaque"}`} />
+                <div className="flex items-start justify-between gap-2 pl-2">
+                  <p className="text-2xl font-black">{reais(c.valor)}</p>
+                  <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-wide ${pronto ? "bg-ok text-white" : "bg-destaque text-texto"}`}>{pronto ? "Liberado" : `Libera em ${libera} ${libera === 1 ? "dia" : "dias"}`}</span>
                 </div>
-                <p className={`text-right text-xs ${vence <= 7 ? "font-semibold text-promo" : "text-fraco"}`}>
-                  Vence em {dataBr(c.venceEm)}
-                  <br />
-                  {vence <= 0 ? "vence hoje" : `faltam ${vence} ${vence === 1 ? "dia" : "dias"}`}
+                <p className="mt-2 pl-2 text-xs text-fraco">{pronto ? "Pronto para usar" : `Libera em ${dataBr(c.liberaEm)}`}</p>
+                <p className={`pl-2 text-xs ${urgente ? "font-bold text-promo" : "text-fraco"}`}>
+                  {vence <= 0 ? "Vence hoje" : `Vence em ${dataBr(c.venceEm)} · faltam ${vence} ${vence === 1 ? "dia" : "dias"}`}
                 </p>
               </li>
             );
@@ -119,17 +179,17 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
         </ul>
       )}
       {usados.length > 0 ? (
-        <div>
-          <h2 className="mb-2 text-sm font-bold">Histórico</h2>
-          <ul className="space-y-1 text-sm">
+        <section>
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fraco">Histórico</h2>
+          <ul className="divide-y divide-borda border border-borda bg-painel text-sm">
             {usados.map((e, i) => (
-              <li key={i} className="flex justify-between rounded-md border border-borda bg-tenue px-3 py-2">
-                <span>{dataBr(e.data)} · ganhou {reais(e.ganhou)}</span>
+              <li key={i} className="flex items-center justify-between gap-3 px-4 py-3">
+                <span>{dataBr(e.data)} · ganhou <b>{reais(e.ganhou)}</b></span>
                 <span className="text-fraco">usou {reais(e.usou)}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       ) : null}
       <p className="text-xs text-fraco">Use o cashback nas lojas Seleto informando seu celular no caixa. Desconto máximo de 20% do valor da compra.</p>
     </div>
@@ -137,22 +197,32 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
 }
 
 function AbaCompras({ dados }: { dados: DadosConta }) {
-  if (dados.comprasOcultas) return <p className="rounded-lg border border-borda bg-painel p-6 text-center text-fraco">Por segurança, suas compras aparecem depois que ativarmos a confirmação por WhatsApp. Em breve!</p>;
-  if (dados.compras.length === 0) return <p className="rounded-lg border border-borda bg-painel p-6 text-center text-fraco">Nenhuma compra encontrada.</p>;
+  if (dados.comprasOcultas) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Por segurança, suas compras aparecem depois que ativarmos a confirmação por WhatsApp. Em breve!</p>;
+  if (dados.compras.length === 0) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Nenhuma compra encontrada.</p>;
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-3">
       {dados.compras.map((c) => (
-        <li key={c.id} className="rounded-lg border border-borda bg-painel p-3">
-          <div className="flex justify-between">
-            <p className="font-bold">{reais(c.valor)}</p>
-            <p className="text-xs text-fraco">{dataBr(c.data)} · {c.loja}</p>
+        <li key={c.id} className="border border-borda bg-painel">
+          <div className="flex items-center justify-between gap-3 border-b border-borda bg-tenue px-4 py-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide">{c.loja}</p>
+              <p className="text-xs text-fraco">{dataBr(c.data)}</p>
+            </div>
+            <p className="text-lg font-black">{reais(c.valor)}</p>
           </div>
-          {c.cashbackUsado > 0 ? <p className="text-xs text-fraco">Cashback usado: {reais(c.cashbackUsado)}</p> : null}
-          {c.itens.length > 0 ? (
-            <ul className="mt-2 space-y-0.5 text-xs text-fraco">
-              {c.itens.map((it, i) => <li key={i}>{it.quantidade}× {it.nome}{it.detalhe ? ` (${it.detalhe})` : ""}</li>)}
-            </ul>
-          ) : null}
+          <div className="px-4 py-3">
+            {c.itens.length > 0 ? (
+              <ul className="space-y-1 text-sm">
+                {c.itens.map((it, i) => (
+                  <li key={i} className="flex justify-between gap-3">
+                    <span>{it.nome}{it.detalhe ? <span className="text-fraco"> · {it.detalhe}</span> : null}</span>
+                    <span className="text-fraco">{it.quantidade}×</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {c.cashbackUsado > 0 ? <p className="mt-2 inline-block bg-destaque px-2 py-1 text-[10px] font-black uppercase tracking-wide">Cashback usado: {reais(c.cashbackUsado)}</p> : null}
+          </div>
         </li>
       ))}
     </ul>
@@ -161,28 +231,33 @@ function AbaCompras({ dados }: { dados: DadosConta }) {
 
 function AbaNivel({ dados }: { dados: DadosConta }) {
   const n = dados.nivel;
+  const regras: [string, string][] = [["Prata", "3 compras e R$ 1.000 em 12 meses"], ["Ouro", "R$ 2.000 em 12 meses"], ["Diamante", "R$ 4.000 em 12 meses"]];
   return (
-    <div className="space-y-3 rounded-lg border border-borda bg-painel p-4">
-      <p className="text-sm text-fraco">Seu nível</p>
-      <p className="text-3xl font-black">{n.nome}</p>
-      <p className="text-sm">Nos últimos 12 meses: {n.compras12m} {n.compras12m === 1 ? "compra" : "compras"} · {reais(n.gasto12m)}</p>
-      {n.proximo ? (
-        <p className="rounded-md bg-tenue p-3 text-sm">
-          Para chegar ao nível <b>{n.proximo}</b>: faltam <b>{reais(n.faltaGasto)}</b>
-          {n.faltaCompras > 0 ? <> e <b>{n.faltaCompras} {n.faltaCompras === 1 ? "compra" : "compras"}</b></> : null}.
-        </p>
-      ) : (
-        <p className="rounded-md bg-tenue p-3 text-sm">Você está no nível máximo. Obrigado pela preferência!</p>
-      )}
-    </div>
-  );
-}
-
-function Caixa({ titulo, valor, destaque }: { titulo: string; valor: string; destaque?: boolean }) {
-  return (
-    <div className={`rounded-lg border p-3 ${destaque ? "border-texto bg-painel" : "border-borda bg-tenue"}`}>
-      <p className="text-xs text-fraco">{titulo}</p>
-      <p className="text-xl font-black">{valor}</p>
+    <div className="space-y-3">
+      <div className="border border-borda bg-painel p-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-fraco">Nos últimos 12 meses</p>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <div><p className="text-3xl font-black">{n.compras12m}</p><p className="text-xs text-fraco">{n.compras12m === 1 ? "compra" : "compras"}</p></div>
+          <div><p className="text-3xl font-black">{reais(n.gasto12m)}</p><p className="text-xs text-fraco">em compras</p></div>
+        </div>
+      </div>
+      <ul className="space-y-2">
+        {regras.map(([nome, regra]) => {
+          const atingido = ordem.indexOf(n.nome) >= ordem.indexOf(nome);
+          return (
+            <li key={nome} className={`flex items-center justify-between gap-3 border p-4 ${atingido ? "border-texto" : "border-borda"} bg-painel`}>
+              <div className="flex items-center gap-3">
+                <span className="h-8 w-8" style={{ background: COR_NIVEL[nome], opacity: atingido ? 1 : 0.35 }} />
+                <div>
+                  <p className="font-black uppercase">{nome}</p>
+                  <p className="text-xs text-fraco">{regra}</p>
+                </div>
+              </div>
+              <span className={`text-xs font-bold uppercase ${atingido ? "text-ok" : "text-fraco"}`}>{atingido ? "Conquistado" : "A conquistar"}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
