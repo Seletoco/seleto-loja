@@ -14,8 +14,10 @@ const WHATS: Record<number, string | undefined> = {
   15: process.env.NEXT_PUBLIC_WHATSAPP_NOVA_IGUACU,
 };
 export const NOME_PARA_ID: Record<string, number> = { Taquara: 3, Aerotown: 13, Américas: 14, "Nova Iguaçu": 15 };
+/** WhatsApp único do atendimento geral (Seleto Store). Se estiver definido, vale para todas as lojas; senão usa o de cada loja. */
+const WHATS_GERAL = process.env.NEXT_PUBLIC_WHATSAPP_SELETO;
 export const linkWhatsappDaLoja = (nome: string, texto: string): string | null => {
-  const n = (WHATS[NOME_PARA_ID[nome]] ?? "").replace(/\D/g, "");
+  const n = (WHATS_GERAL || WHATS[NOME_PARA_ID[nome]] || "").replace(/\D/g, "");
   return n.length >= 10 ? `https://wa.me/${n.startsWith("55") ? n : `55${n}`}?text=${encodeURIComponent(texto)}` : null;
 };
 export const LINK_AVALIACAO_GOOGLE = process.env.NEXT_PUBLIC_GOOGLE_AVALIACAO_URL || null;

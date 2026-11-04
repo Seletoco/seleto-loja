@@ -46,6 +46,10 @@ export interface DadosConta {
   nivel: Nivel;
   preferencias: Preferencias;
   alertas: Alerta[];
+  /** Link do grupo VIP (qualquer cliente logado pode entrar); null se a lista VIP está desligada. */
+  vipLink: string | null;
+  /** Código para indicar amigos (fixo por cliente). */
+  codigoIndicacao: string;
 }
 
 /** Mesma régua do SeleChat (src/lib/vip.ts): VIP = 3+ compras e R$ 1.000+ em 12 meses; Ouro R$ 2.000; Diamante R$ 4.000. */

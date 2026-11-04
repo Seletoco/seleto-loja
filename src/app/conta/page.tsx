@@ -12,7 +12,7 @@ const post = (url: string, corpo: object) => fetch(url, { method: "POST", header
 
 const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
-type Aba = "cashback" | "compras" | "nivel" | "ajustes";
+type Aba = "cashback" | "compras" | "vantagens" | "nivel" | "ajustes";
 
 export default function Conta() {
   const [dados, setDados] = useState<DadosConta | null>(null);
@@ -76,11 +76,11 @@ function Icone({ d }: { d: string }) {
     </svg>
   );
 }
-const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
+const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", vantagens: "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
 
 function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
   const [aba, setAba] = useState<Aba>("cashback");
-  const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["nivel", "Meu nível"], ["ajustes", "Ajustes"]];
+  const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["vantagens", "Vantagens"], ["nivel", "Nível"], ["ajustes", "Ajustes"]];
   const n = dados.nivel;
   const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).reduce((s, c) => s + c.valor, 0);
   const aLiberar = dados.cashbacks.filter((c) => diasAte(c.liberaEm) > 0).reduce((s, c) => s + c.valor, 0);
@@ -137,7 +137,7 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
 
         {/* coluna do conteúdo */}
         <div className="min-w-0 space-y-4">
-          <div className="grid grid-cols-4 border border-borda bg-painel">
+          <div className="grid grid-cols-5 border border-borda bg-painel">
             {abas.map(([k, t]) => (
               <button key={k} onClick={() => setAba(k)} className={`flex flex-col items-center justify-center gap-1 px-1 py-3 text-[10px] font-bold uppercase tracking-wide transition sm:flex-row sm:gap-2 sm:px-2 sm:text-sm ${aba === k ? "bg-texto text-white" : "hover:bg-tenue"}`}>
                 <Icone d={ICONES[k]} />
@@ -145,7 +145,7 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
               </button>
             ))}
           </div>
-          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : aba === "nivel" ? <AbaNivel dados={dados} /> : <AbaAjustes dados={dados} />}
+          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : aba === "vantagens" ? <AbaVantagens dados={dados} /> : aba === "nivel" ? <AbaNivel dados={dados} /> : <AbaAjustes dados={dados} />}
         </div>
       </div>
     </div>
@@ -353,6 +353,82 @@ function AbaAjustes({ dados }: { dados: DadosConta }) {
         ) : null}
       </section>
       {msg ? <p className="text-sm text-fraco" role="status">{msg}</p> : null}
+    </div>
+  );
+}
+
+function Cartao({ icone, titulo, texto, breve, children }: { icone: string; titulo: string; texto: string; breve?: boolean; children?: React.ReactNode }) {
+  return (
+    <section className="space-y-3 border border-borda bg-painel p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-texto text-white"><Icone d={icone} /></span>
+          <div>
+            <h3 className="font-black uppercase">{titulo}</h3>
+            <p className="text-sm text-fraco">{texto}</p>
+          </div>
+        </div>
+        {breve ? <span className="shrink-0 bg-destaque px-2 py-1 text-[10px] font-black uppercase tracking-wide">Em breve</span> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function AbaVantagens({ dados }: { dados: DadosConta }) {
+  const [qr, setQr] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const [erroQr, setErroQr] = useState("");
+  const mensagem = `Conhece a Seleto? Use meu código ${dados.codigoIndicacao} na sua primeira compra e a gente se beneficia!`;
+
+  async function mostrarQr() {
+    setErroQr("");
+    const r = await fetch("/api/conta/qr");
+    if (r.ok) setQr((await r.json()).imagem);
+    else setErroQr("Não foi possível gerar o QR agora.");
+  }
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(dados.codigoIndicacao);
+      setCopiado(true);
+    } catch {
+      setCopiado(false);
+    }
+  }
+  return (
+    <div className="space-y-3">
+      <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Lista VIP" texto="Entre no grupo VIP da Seleto e receba ofertas e novidades antes de todo mundo.">
+        {dados.vipLink ? (
+          <a href={dados.vipLink} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar na lista VIP</a>
+        ) : (
+          <p className="text-xs text-fraco">A lista VIP está fechada no momento. Avisaremos quando abrir.</p>
+        )}
+      </Cartao>
+
+      <Cartao icone="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" titulo="Indique um amigo" texto="Quem indica ganha cashback quando o amigo faz a primeira compra." breve>
+        <div className="flex items-center justify-between gap-3 bg-tenue px-3 py-2">
+          <span className="font-mono text-lg font-black tracking-wider">{dados.codigoIndicacao}</span>
+          <button onClick={copiar} className="text-xs font-bold uppercase underline underline-offset-4">{copiado ? "Copiado!" : "Copiar"}</button>
+        </div>
+        <a href={`https://wa.me/?text=${encodeURIComponent(mensagem)}`} target="_blank" rel="noopener noreferrer" className="btn-claro w-full">Enviar pelo WhatsApp</a>
+      </Cartao>
+
+      <Cartao icone="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20v.01M20 20v.01" titulo="QR no caixa" texto="Mostre o QR no celular e o vendedor aplica seu cashback sem digitar nada." breve>
+        {qr ? (
+          <div className="flex flex-col items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qr} alt="QR code para o caixa" width={180} height={180} className="border border-borda" />
+            <p className="text-xs text-fraco">Vale por 10 minutos. Por enquanto é uma demonstração.</p>
+          </div>
+        ) : (
+          <button onClick={mostrarQr} className="btn-claro w-full">Mostrar meu QR</button>
+        )}
+        {erroQr ? <p className="text-xs text-promo">{erroQr}</p> : null}
+      </Cartao>
+
+      <Cartao icone="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s1.5-2 4-2 4 2 8 2 4-2 4-2M2 21h20M7 11V7M12 11V7M17 11V7M7 4v.01M12 4v.01M17 4v.01" titulo="Presente de aniversário" texto="No mês do seu aniversário você ganha um cashback de presente, automático." breve />
+
+      <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Avalie e ganhe +5%" texto="Avalie sua compra no Google e ganhe mais 5% de cashback. O vendedor confere e libera para você." breve />
     </div>
   );
 }

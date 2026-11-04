@@ -3,6 +3,7 @@ import { bancoLigado, db } from "@/lib/db";
 import { calcularNivel, type DadosConta } from "@/lib/conta-tipos";
 
 export const CPF_DEMO = "52998224725";
+export const codigoDeIndicacao = (cpfHash: string) => `SELETO-${cpfHash.slice(0, 6).toUpperCase()}`;
 export const hashCpf = (cpf: string) => createHash("sha256").update(cpf, "utf8").digest("hex");
 export const ipDe = (req: Request) => req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "sem-ip";
 
@@ -31,13 +32,15 @@ export function dadosDemo(): DadosConta {
     nivel: calcularNivel(3, 1209.7),
     preferencias: { avisosCashback: true, avisosPromocoes: true },
     alertas: [{ id: "d1", descricao: "Tênis de corrida", tamanho: "42" }],
+    vipLink: "https://chat.whatsapp.com/exemplo",
+    codigoIndicacao: "SELETO-A1B2C3",
   };
 }
 
 export async function dadosDoCliente(cpfHash: string, verificado: boolean): Promise<DadosConta | null> {
   if (!bancoLigado()) return dadosDemo();
   const banco = db();
-  const [cli, cash, ext, comp, itens, gasto, pref, alr] = await Promise.all([
+  const [cli, cash, ext, comp, itens, gasto, pref, alr, vip] = await Promise.all([
     banco.query<{ primeiro_nome: string }>(`SELECT primeiro_nome FROM loja.v_cliente_por_cpf WHERE cpf_hash = $1 LIMIT 1`, [cpfHash]),
     banco.query<{ valor: string; libera: string; vence: string }>(
       `SELECT valor, to_char(vale_a_partir_de, 'YYYY-MM-DD') AS libera, to_char(valido_ate, 'YYYY-MM-DD') AS vence
@@ -56,6 +59,7 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
     banco.query<{ compras: number; gasto: string }>(`SELECT compras, gasto FROM loja.v_gasto_12m_por_cpf WHERE cpf_hash = $1`, [cpfHash]),
     banco.query<{ avisos_cashback: boolean; avisos_promocoes: boolean }>(`SELECT avisos_cashback, avisos_promocoes FROM loja.preferencias WHERE cpf_hash = $1`, [cpfHash]),
     banco.query<{ id: string; descricao: string; tamanho: string | null }>(`SELECT id::text, descricao, tamanho FROM loja.alertas_produto WHERE cpf_hash = $1 AND ativo ORDER BY criado_em DESC LIMIT 20`, [cpfHash]),
+    banco.query<{ link: string | null }>(`SELECT link FROM loja.v_vip_grupo WHERE vip_ativo LIMIT 1`),
   ]);
   if (cli.rows.length === 0) return null;
   return {
@@ -75,5 +79,7 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
     nivel: calcularNivel(gasto.rows[0]?.compras ?? 0, Number(gasto.rows[0]?.gasto ?? 0)),
     preferencias: { avisosCashback: pref.rows[0]?.avisos_cashback ?? true, avisosPromocoes: pref.rows[0]?.avisos_promocoes ?? true },
     alertas: alr.rows.map((a) => ({ id: a.id, descricao: a.descricao, tamanho: a.tamanho })),
+    vipLink: vip.rows[0]?.link ?? null,
+    codigoIndicacao: codigoDeIndicacao(cpfHash),
   };
 }
