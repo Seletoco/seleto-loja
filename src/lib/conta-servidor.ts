@@ -29,13 +29,15 @@ export function dadosDemo(): DadosConta {
       { id: "d3", data: new Date(Date.now() - 120 * 86_400_000).toISOString(), loja: "Américas", valor: 520, cashbackUsado: 0, itens: [{ nome: "Jaqueta Corta-vento", detalhe: "Verde · G", quantidade: 1 }] },
     ],
     nivel: calcularNivel(3, 1209.7),
+    preferencias: { avisosCashback: true, avisosPromocoes: true },
+    alertas: [{ id: "d1", descricao: "Tênis de corrida", tamanho: "42" }],
   };
 }
 
 export async function dadosDoCliente(cpfHash: string, verificado: boolean): Promise<DadosConta | null> {
   if (!bancoLigado()) return dadosDemo();
   const banco = db();
-  const [cli, cash, ext, comp, itens, gasto] = await Promise.all([
+  const [cli, cash, ext, comp, itens, gasto, pref, alr] = await Promise.all([
     banco.query<{ primeiro_nome: string }>(`SELECT primeiro_nome FROM loja.v_cliente_por_cpf WHERE cpf_hash = $1 LIMIT 1`, [cpfHash]),
     banco.query<{ valor: string; libera: string; vence: string }>(
       `SELECT valor, to_char(vale_a_partir_de, 'YYYY-MM-DD') AS libera, to_char(valido_ate, 'YYYY-MM-DD') AS vence
@@ -43,7 +45,7 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
         ORDER BY valido_ate, vale_a_partir_de`, [cpfHash]),
     banco.query<{ ganhou: string; usou: string; saldo: string; data: string; vence: string }>(
       `SELECT ganhou, usou, saldo, to_char(criado_em AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS data, to_char(valido_ate, 'YYYY-MM-DD') AS vence
-         FROM loja.v_extrato_cashback_por_cpf WHERE cpf_hash = $1 ORDER BY criado_em DESC LIMIT 30`, [cpfHash]),
+         FROM loja.v_extrato_cashback_por_cpf WHERE cpf_hash = $1 ORDER BY criado_em DESC LIMIT 50`, [cpfHash]),
     banco.query<{ id: string; data: string; loja_id: number; valor: string; usado: string }>(
       `SELECT venda_id::text AS id, data_hora AS data, loja_id, valor, cashback_usado AS usado
          FROM loja.v_compras_por_cpf WHERE cpf_hash = $1 ORDER BY data_hora DESC LIMIT 20`, [cpfHash]),
@@ -52,6 +54,8 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
          FROM loja.v_compra_itens_por_cpf i
         WHERE i.cpf_hash = $1 AND i.venda_id IN (SELECT venda_id FROM loja.v_compras_por_cpf WHERE cpf_hash = $1 ORDER BY data_hora DESC LIMIT 20)`, [cpfHash]),
     banco.query<{ compras: number; gasto: string }>(`SELECT compras, gasto FROM loja.v_gasto_12m_por_cpf WHERE cpf_hash = $1`, [cpfHash]),
+    banco.query<{ avisos_cashback: boolean; avisos_promocoes: boolean }>(`SELECT avisos_cashback, avisos_promocoes FROM loja.preferencias WHERE cpf_hash = $1`, [cpfHash]),
+    banco.query<{ id: string; descricao: string; tamanho: string | null }>(`SELECT id::text, descricao, tamanho FROM loja.alertas_produto WHERE cpf_hash = $1 AND ativo ORDER BY criado_em DESC LIMIT 20`, [cpfHash]),
   ]);
   if (cli.rows.length === 0) return null;
   return {
@@ -69,5 +73,7 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
       itens: itens.rows.filter((i) => i.id === c.id).map((i) => ({ nome: i.nome, detalhe: [i.cor, i.tamanho].filter(Boolean).join(" · "), quantidade: Number(i.quantidade) })),
     })),
     nivel: calcularNivel(gasto.rows[0]?.compras ?? 0, Number(gasto.rows[0]?.gasto ?? 0)),
+    preferencias: { avisosCashback: pref.rows[0]?.avisos_cashback ?? true, avisosPromocoes: pref.rows[0]?.avisos_promocoes ?? true },
+    alertas: alr.rows.map((a) => ({ id: a.id, descricao: a.descricao, tamanho: a.tamanho })),
   };
 }
