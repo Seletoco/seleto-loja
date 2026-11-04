@@ -30,35 +30,17 @@ export default function Conta() {
 
 function Login({ aoEntrar }: { aoEntrar: (d: DadosConta) => void }) {
   const [cpf, setCpf] = useState("");
-  const [codigo, setCodigo] = useState("");
-  const [telefone, setTelefone] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
-
-  async function pedir(e?: React.FormEvent) {
-    e?.preventDefault();
-    setErro("");
-    if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
-    setCarregando(true);
-    try {
-      const r = await post("/api/conta/codigo", { cpf });
-      const j = await r.json();
-      if (!r.ok) setErro(j.erro ?? "Não foi possível enviar o código.");
-      else setTelefone(j.telefone || "seu WhatsApp");
-    } catch {
-      setErro("Sem conexão. Tente novamente.");
-    } finally {
-      setCarregando(false);
-    }
-  }
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+    if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
     setCarregando(true);
     try {
-      const r = await post("/api/conta/entrar", { cpf, codigo });
-      if (!r.ok) return setErro((await r.json()).erro ?? "Código incorreto.");
+      const r = await post("/api/conta/entrar", { cpf });
+      if (!r.ok) return setErro((await r.json()).erro ?? "Não foi possível entrar.");
       const d = await fetch("/api/conta/dados");
       if (d.ok) aoEntrar(await d.json());
       else setErro("Não foi possível carregar seus dados.");
@@ -69,27 +51,14 @@ function Login({ aoEntrar }: { aoEntrar: (d: DadosConta) => void }) {
     }
   }
 
-  if (telefone === null) {
-    return (
-      <form onSubmit={pedir} className="mx-auto max-w-sm space-y-3 rounded-xl border border-borda bg-painel p-6">
-        <h1 className="text-xl font-bold">Minha conta Seleto</h1>
-        <p className="text-sm text-fraco">Digite seu CPF. Enviamos um código de acesso para o seu WhatsApp cadastrado.</p>
-        <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
-        {erro ? <p className="text-sm text-promo">{erro}</p> : null}
-        <button className="btn w-full" disabled={carregando}>{carregando ? "Enviando…" : "Receber código"}</button>
-        <p className="text-xs text-fraco">Teste: CPF 529.982.247-25 · código 123456.</p>
-      </form>
-    );
-  }
   return (
     <form onSubmit={entrar} className="mx-auto max-w-sm space-y-3 rounded-xl border border-borda bg-painel p-6">
-      <h1 className="text-xl font-bold">Digite o código</h1>
-      <p className="text-sm text-fraco">Enviamos um código de 6 números para o WhatsApp {telefone}. Vale por 10 minutos.</p>
-      <input className="campo text-center text-2xl tracking-[0.4em]" placeholder="000000" inputMode="numeric" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))} autoComplete="one-time-code" required />
+      <h1 className="text-xl font-bold">Minha conta Seleto</h1>
+      <p className="text-sm text-fraco">Digite seu CPF para ver seu cashback e seu nível.</p>
+      <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
       {erro ? <p className="text-sm text-promo">{erro}</p> : null}
-      <button className="btn w-full" disabled={carregando || codigo.length !== 6}>{carregando ? "Entrando…" : "Entrar"}</button>
-      <button type="button" className="btn-claro w-full" onClick={() => { setTelefone(null); setCodigo(""); setErro(""); }}>Voltar</button>
-      <button type="button" className="w-full text-xs text-fraco underline" onClick={() => pedir()}>Reenviar código</button>
+      <button className="btn w-full" disabled={carregando}>{carregando ? "Entrando…" : "Entrar"}</button>
+      <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>
     </form>
   );
 }
@@ -168,6 +137,7 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
 }
 
 function AbaCompras({ dados }: { dados: DadosConta }) {
+  if (dados.comprasOcultas) return <p className="rounded-lg border border-borda bg-painel p-6 text-center text-fraco">Por segurança, suas compras aparecem depois que ativarmos a confirmação por WhatsApp. Em breve!</p>;
   if (dados.compras.length === 0) return <p className="rounded-lg border border-borda bg-painel p-6 text-center text-fraco">Nenhuma compra encontrada.</p>;
   return (
     <ul className="space-y-2">

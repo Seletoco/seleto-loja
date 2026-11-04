@@ -17,6 +17,8 @@ const assinar = (corpo: string) => createHmac("sha256", segredo()).update(corpo)
 export interface Sessao {
   cpfHash: string;
   nome: string;
+  /** true só quando o cliente provou ter o WhatsApp (código). Hoje o login é só por CPF, então fica false. */
+  verificado: boolean;
 }
 
 export function criarToken(s: Sessao): string {
@@ -34,7 +36,7 @@ export function lerToken(token: string | undefined): Sessao | null {
   try {
     const d = JSON.parse(Buffer.from(corpo, "base64url").toString("utf8")) as Sessao & { exp: number };
     if (!d.exp || d.exp < Date.now() / 1000) return null;
-    return { cpfHash: d.cpfHash, nome: d.nome };
+    return { cpfHash: d.cpfHash, nome: d.nome, verificado: d.verificado === true };
   } catch {
     return null;
   }

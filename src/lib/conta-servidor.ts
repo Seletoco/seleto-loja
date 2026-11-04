@@ -3,9 +3,7 @@ import { bancoLigado, db } from "@/lib/db";
 import { calcularNivel, type DadosConta } from "@/lib/conta-tipos";
 
 export const CPF_DEMO = "52998224725";
-export const CODIGO_DEMO = "123456";
 export const hashCpf = (cpf: string) => createHash("sha256").update(cpf, "utf8").digest("hex");
-export const hashCodigo = (cpfHash: string, codigo: string) => createHash("sha256").update(`${cpfHash}:${codigo}`, "utf8").digest("hex");
 export const ipDe = (req: Request) => req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "sem-ip";
 
 const NOMES_LOJAS: Record<number, string> = { 3: "Taquara", 13: "Aerotown", 14: "Américas", 15: "Nova Iguaçu" };
@@ -15,6 +13,7 @@ export function dadosDemo(): DadosConta {
   return {
     nome: "Cliente Demonstração",
     demo: true,
+    comprasOcultas: false, // a demonstração mostra tudo, para ver como fica
     cashbacks: [
       { valor: 46.5, liberaEm: dia(-3), venceEm: dia(27) },
       { valor: 80, liberaEm: dia(4), venceEm: dia(34) },
@@ -33,7 +32,7 @@ export function dadosDemo(): DadosConta {
   };
 }
 
-export async function dadosDoCliente(cpfHash: string): Promise<DadosConta | null> {
+export async function dadosDoCliente(cpfHash: string, verificado: boolean): Promise<DadosConta | null> {
   if (!bancoLigado()) return dadosDemo();
   const banco = db();
   const [cli, cash, ext, comp, itens, gasto] = await Promise.all([
@@ -58,9 +57,10 @@ export async function dadosDoCliente(cpfHash: string): Promise<DadosConta | null
   return {
     nome: cli.rows[0].primeiro_nome,
     demo: false,
+    comprasOcultas: !verificado,
     cashbacks: cash.rows.map((r) => ({ valor: Number(r.valor), liberaEm: r.libera, venceEm: r.vence })),
     extrato: ext.rows.map((r) => ({ ganhou: Number(r.ganhou), usou: Number(r.usou), saldo: Number(r.saldo), data: r.data, venceEm: r.vence })),
-    compras: comp.rows.map((c) => ({
+    compras: !verificado ? [] : comp.rows.map((c) => ({
       id: c.id,
       data: new Date(c.data).toISOString(),
       loja: NOMES_LOJAS[c.loja_id] ?? "Seleto",

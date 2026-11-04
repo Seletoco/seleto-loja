@@ -29,6 +29,8 @@ export interface Nivel {
 export interface DadosConta {
   nome: string;
   demo: boolean;
+  /** Login só por CPF: o histórico de compras fica oculto até existir verificação por WhatsApp. */
+  comprasOcultas: boolean;
   cashbacks: CashbackItem[];
   extrato: ExtratoItem[];
   compras: CompraItem[];
