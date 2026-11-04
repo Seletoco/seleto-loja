@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
-import type { DadosConta } from "@/lib/conta-tipos";
+import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
+import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
 const diasAte = (iso: string) => Math.round((new Date(iso + "T00:00:00Z").getTime() - new Date(hoje() + "T00:00:00Z").getTime()) / 86_400_000);
 const post = (url: string, corpo: object) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
 
-type Aba = "cashback" | "compras" | "nivel";
+const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+
+type Aba = "cashback" | "compras" | "nivel" | "ajustes";
 
 export default function Conta() {
   const [dados, setDados] = useState<DadosConta | null>(null);
@@ -73,11 +76,11 @@ function Icone({ d }: { d: string }) {
     </svg>
   );
 }
-const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
+const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
 
 function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
   const [aba, setAba] = useState<Aba>("cashback");
-  const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["nivel", "Meu nível"]];
+  const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["nivel", "Meu nível"], ["ajustes", "Ajustes"]];
   const n = dados.nivel;
   const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).reduce((s, c) => s + c.valor, 0);
   const aLiberar = dados.cashbacks.filter((c) => diasAte(c.liberaEm) > 0).reduce((s, c) => s + c.valor, 0);
@@ -134,15 +137,15 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
 
         {/* coluna do conteúdo */}
         <div className="min-w-0 space-y-4">
-          <div className="grid grid-cols-3 border border-borda bg-painel">
+          <div className="grid grid-cols-4 border border-borda bg-painel">
             {abas.map(([k, t]) => (
-              <button key={k} onClick={() => setAba(k)} className={`flex items-center justify-center gap-2 px-2 py-3 text-xs font-bold uppercase tracking-wide transition sm:text-sm ${aba === k ? "bg-texto text-white" : "hover:bg-tenue"}`}>
+              <button key={k} onClick={() => setAba(k)} className={`flex flex-col items-center justify-center gap-1 px-1 py-3 text-[10px] font-bold uppercase tracking-wide transition sm:flex-row sm:gap-2 sm:px-2 sm:text-sm ${aba === k ? "bg-texto text-white" : "hover:bg-tenue"}`}>
                 <Icone d={ICONES[k]} />
                 {t}
               </button>
             ))}
           </div>
-          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : <AbaNivel dados={dados} />}
+          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : aba === "nivel" ? <AbaNivel dados={dados} /> : <AbaAjustes dados={dados} />}
         </div>
       </div>
     </div>
@@ -150,7 +153,7 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
 }
 
 function AbaCashback({ dados }: { dados: DadosConta }) {
-  const usados = dados.extrato.filter((e) => e.saldo <= 0 || e.usou > 0);
+  const extrato = dados.extrato;
   return (
     <div className="space-y-5">
       {dados.cashbacks.length === 0 ? (
@@ -178,16 +181,26 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
           })}
         </ul>
       )}
-      {usados.length > 0 ? (
+      {extrato.length > 0 ? (
         <section>
-          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fraco">Histórico</h2>
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fraco">Extrato</h2>
           <ul className="divide-y divide-borda border border-borda bg-painel text-sm">
-            {usados.map((e, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span>{dataBr(e.data)} · ganhou <b>{reais(e.ganhou)}</b></span>
-                <span className="text-fraco">usou {reais(e.usou)}</span>
-              </li>
-            ))}
+            {extrato.map((e, i) => {
+              const venceu = e.saldo > 0 && diasAte(e.venceEm) < 0;
+              return (
+                <li key={i} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-bold">Ganhou {reais(e.ganhou)}</span>
+                    <span className="text-xs text-fraco">{dataBr(e.data)}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-fraco">
+                    <span>Usou <b className="text-texto">{reais(e.usou)}</b></span>
+                    <span>{venceu ? "Venceu" : "Sobrou"} <b className="text-texto">{reais(e.saldo)}</b></span>
+                    <span>{venceu ? `Venceu em ${dataBr(e.venceEm)}` : e.saldo > 0 ? `Vence em ${dataBr(e.venceEm)}` : "Usado por completo"}</span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
@@ -222,10 +235,23 @@ function AbaCompras({ dados }: { dados: DadosConta }) {
               </ul>
             ) : null}
             {c.cashbackUsado > 0 ? <p className="mt-2 inline-block bg-destaque px-2 py-1 text-[10px] font-black uppercase tracking-wide">Cashback usado: {reais(c.cashbackUsado)}</p> : null}
+            <PosVenda loja={c.loja} data={c.data} />
           </div>
         </li>
       ))}
     </ul>
+  );
+}
+
+function PosVenda({ loja, data }: { loja: string; data: string }) {
+  const zap = linkWhatsappDaLoja(loja, `Olá! Sobre minha compra de ${dataBr(data)} na Seleto ${loja}.`);
+  if (!zap && !LINK_AVALIACAO_GOOGLE) return null;
+  const recente = diasDesde(data) <= 30;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2 border-t border-borda pt-3">
+      {LINK_AVALIACAO_GOOGLE && recente ? <a href={LINK_AVALIACAO_GOOGLE} target="_blank" rel="noopener noreferrer" className="btn !px-3 !py-2 !text-xs">Avaliar no Google</a> : null}
+      {zap ? <a href={zap} target="_blank" rel="noopener noreferrer" className="btn-claro !px-3 !py-2 !text-xs">Falar com a loja</a> : null}
+    </div>
   );
 }
 
@@ -258,6 +284,75 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+function Chave({ ligado, aoMudar, titulo, texto }: { ligado: boolean; aoMudar: (v: boolean) => void; titulo: string; texto: string }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-4 border border-borda bg-painel p-4">
+      <span>
+        <span className="block font-bold">{titulo}</span>
+        <span className="block text-xs text-fraco">{texto}</span>
+      </span>
+      <input type="checkbox" role="switch" className="h-5 w-10 shrink-0 accent-black" checked={ligado} onChange={(e) => aoMudar(e.target.checked)} />
+    </label>
+  );
+}
+
+function AbaAjustes({ dados }: { dados: DadosConta }) {
+  const [pref, setPref] = useState<Preferencias>(dados.preferencias);
+  const [alertas, setAlertas] = useState<Alerta[]>(dados.alertas);
+  const [descricao, setDescricao] = useState("");
+  const [tamanho, setTamanho] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function mudar(novo: Preferencias) {
+    setPref(novo);
+    const r = await post("/api/conta/preferencias", novo);
+    setMsg(r.ok ? "Preferência salva." : "Não foi possível salvar. Tente de novo.");
+  }
+  async function criar(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg("");
+    const r = await post("/api/conta/alertas", { descricao, tamanho });
+    const j = await r.json();
+    if (!r.ok) return setMsg(j.erro ?? "Não foi possível criar o aviso.");
+    setAlertas([j, ...alertas]);
+    setDescricao("");
+    setTamanho("");
+    setMsg("Pronto! Avisamos você quando chegar.");
+  }
+  async function remover(id: string) {
+    setAlertas(alertas.filter((a) => a.id !== id));
+    await post("/api/conta/alertas", { remover: id });
+  }
+  return (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-fraco">Mensagens no WhatsApp</h2>
+        <Chave ligado={pref.avisosCashback} aoMudar={(v) => mudar({ ...pref, avisosCashback: v })} titulo="Avisos de cashback" texto="Quando você ganha cashback e quando ele está perto de vencer." />
+        <Chave ligado={pref.avisosPromocoes} aoMudar={(v) => mudar({ ...pref, avisosPromocoes: v })} titulo="Novidades e promoções" texto="Lançamentos, ofertas e convites da Seleto." />
+      </section>
+      <section className="space-y-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-fraco">Me avise quando chegar</h2>
+        <form onSubmit={criar} className="grid grid-cols-[1fr_88px] gap-2 border border-borda bg-painel p-4 sm:grid-cols-[1fr_88px_auto]">
+          <input className="campo col-span-2 sm:col-span-1" placeholder="Ex.: Tênis de corrida Nike" maxLength={120} value={descricao} onChange={(e) => setDescricao(e.target.value)} required />
+          <input className="campo" placeholder="Tam." maxLength={12} value={tamanho} onChange={(e) => setTamanho(e.target.value)} aria-label="Tamanho" />
+          <button className="btn !px-4 col-span-2 sm:col-span-1">Avisar</button>
+        </form>
+        {alertas.length > 0 ? (
+          <ul className="divide-y divide-borda border border-borda bg-painel text-sm">
+            {alertas.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <span>{a.descricao}{a.tamanho ? <span className="text-fraco"> · tam. {a.tamanho}</span> : null}</span>
+                <button onClick={() => remover(a.id)} className="text-xs font-bold uppercase text-fraco underline underline-offset-4 hover:text-promo">Remover</button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+      {msg ? <p className="text-sm text-fraco" role="status">{msg}</p> : null}
     </div>
   );
 }

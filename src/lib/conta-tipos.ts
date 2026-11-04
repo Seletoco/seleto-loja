@@ -26,6 +26,15 @@ export interface Nivel {
   gasto12m: number;
   compras12m: number;
 }
+export interface Preferencias {
+  avisosCashback: boolean;
+  avisosPromocoes: boolean;
+}
+export interface Alerta {
+  id: string;
+  descricao: string;
+  tamanho: string | null;
+}
 export interface DadosConta {
   nome: string;
   demo: boolean;
@@ -35,6 +44,8 @@ export interface DadosConta {
   extrato: ExtratoItem[];
   compras: CompraItem[];
   nivel: Nivel;
+  preferencias: Preferencias;
+  alertas: Alerta[];
 }
 
 /** Mesma régua do SeleChat (src/lib/vip.ts): VIP = 3+ compras e R$ 1.000+ em 12 meses; Ouro R$ 2.000; Diamante R$ 4.000. */
