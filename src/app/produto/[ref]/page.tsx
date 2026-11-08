@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdicionarAoCarrinho } from "@/components/AdicionarAoCarrinho";
+import { BlocoVantagensProduto } from "@/components/BlocoVantagensProduto";
 import { Fileira } from "@/components/Fileira";
 import { produtoPorRef, relacionados } from "@/lib/catalogo";
 import { reais } from "@/lib/format";
+import { cashbackGanho, percentualCashbackGanho } from "@/lib/vantagens";
 
 export default async function ProdutoPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;
@@ -47,12 +49,14 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
 
           <AdicionarAoCarrinho p={p} />
 
+          <BlocoVantagensProduto nome={p.nome} ganho={cashbackGanho(p.preco)} percentual={percentualCashbackGanho()} />
+
           <div className="divide-y divide-borda border-y border-borda text-sm">
             <Info titulo="Entrega para todo o Brasil" aberto>
               Calculamos o frete e o prazo com você no pedido, pelo WhatsApp, antes de cobrar. Entregamos em todos os estados.
             </Info>
             <Info titulo="Retirada na loja">
-              Retire sem fila em uma das nossas lojas: Américas, Aerotown, Nova Iguaçu ou Taquara.
+              Retire sem fila em uma das nossas lojas: Américas, Aerotown, Nova Iguaçu ou Taquara. É grátis.
             </Info>
             <Info titulo="Trocas">
               A loja confirma a disponibilidade antes de separar o pedido. Trocas nas lojas (política a revisar).

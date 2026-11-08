@@ -7,6 +7,7 @@ import { useCarrinho } from "@/lib/carrinho";
 import { dataBr, digitos, reais } from "@/lib/format";
 import { cpfValido, formatarCpf, soDigitos } from "@/lib/cpf";
 import { LOJAS } from "@/lib/lojas";
+import { lerLojaPreferida } from "@/lib/loja-preferida";
 import { FORMAS_PAGAMENTO } from "@/lib/pagamento";
 import type { PedidoSalvo } from "@/lib/tipos";
 import { regraDeUso, situacaoDoCashback } from "@/lib/regra-cashback";
@@ -29,7 +30,7 @@ export default function Checkout() {
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [entrega, setEntrega] = useState<"retirada_loja" | "entrega_combinada">("retirada_loja");
-  const [loja, setLoja] = useState<string>(String(LOJAS[0].id));
+  const [loja, setLoja] = useState<string>(() => (typeof window === "undefined" ? null : lerLojaPreferida()) ?? String(LOJAS[0].id));
   // Entrega para todo o Brasil: CEP -> endereço (ViaCEP) + frete (Correios, ou estimativa de exemplo).
   const [cep, setCep] = useState("");
   const [logradouro, setLogradouro] = useState("");

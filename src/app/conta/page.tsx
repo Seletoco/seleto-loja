@@ -5,6 +5,7 @@ import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
+import { BENEFICIOS_POR_NIVEL, BENEFICIOS_SAO_EXEMPLO } from "@/lib/vantagens";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
 const diasAte = (iso: string) => Math.round((new Date(iso + "T00:00:00Z").getTime() - new Date(hoje() + "T00:00:00Z").getTime()) / 86_400_000);
@@ -13,6 +14,9 @@ const post = (url: string, corpo: object) => fetch(url, { method: "POST", header
 const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
 type Aba = "cashback" | "compras" | "vantagens" | "nivel" | "ajustes";
+const ABAS: Aba[] = ["cashback", "compras", "vantagens", "nivel", "ajustes"];
+/** Só roda no navegador (a área só monta depois do login), então pode ler a URL direto. */
+const paramDaUrl = (nome: string) => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(nome));
 
 export default function Conta() {
   const [dados, setDados] = useState<DadosConta | null>(null);
@@ -79,7 +83,7 @@ function Icone({ d }: { d: string }) {
 const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", vantagens: "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
 
 function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
-  const [aba, setAba] = useState<Aba>("cashback");
+  const [aba, setAba] = useState<Aba>(() => ABAS.find((a) => a === paramDaUrl("aba")) ?? "cashback");
   const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["vantagens", "Vantagens"], ["nivel", "Nível"], ["ajustes", "Ajustes"]];
   const n = dados.nivel;
   const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).reduce((s, c) => s + c.valor, 0);
@@ -267,6 +271,7 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
           <div><p className="text-3xl font-black">{reais(n.gasto12m)}</p><p className="text-xs text-fraco">em compras</p></div>
         </div>
       </div>
+      {BENEFICIOS_SAO_EXEMPLO ? <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Benefícios em definição (exemplo)</p> : null}
       <ul className="space-y-2">
         {regras.map(([nome, regra]) => {
           const atingido = ordem.indexOf(n.nome) >= ordem.indexOf(nome);
@@ -277,6 +282,9 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
                 <div>
                   <p className="font-black uppercase">{nome}</p>
                   <p className="text-xs text-fraco">{regra}</p>
+                  <ul className="mt-1 list-disc pl-4 text-xs">
+                    {(BENEFICIOS_POR_NIVEL.find((b) => b.nivel === nome)?.beneficios ?? []).map((b) => <li key={b}>{b}</li>)}
+                  </ul>
                 </div>
               </div>
               <span className={`text-xs font-bold uppercase ${atingido ? "text-ok" : "text-fraco"}`}>{atingido ? "Conquistado" : "A conquistar"}</span>
@@ -303,7 +311,7 @@ function Chave({ ligado, aoMudar, titulo, texto }: { ligado: boolean; aoMudar: (
 function AbaAjustes({ dados }: { dados: DadosConta }) {
   const [pref, setPref] = useState<Preferencias>(dados.preferencias);
   const [alertas, setAlertas] = useState<Alerta[]>(dados.alertas);
-  const [descricao, setDescricao] = useState("");
+  const [descricao, setDescricao] = useState(() => (paramDaUrl("aviso") ?? "").slice(0, 120));
   const [tamanho, setTamanho] = useState("");
   const [msg, setMsg] = useState("");
 

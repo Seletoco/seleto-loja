@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCarrinho } from "@/lib/carrinho";
 import { reais } from "@/lib/format";
+import { cashbackGanho, percentualCashbackGanho } from "@/lib/vantagens";
 
 export default function Carrinho() {
   const { itens, subtotal, pronto, alterar, remover } = useCarrinho();
@@ -45,6 +46,14 @@ export default function Carrinho() {
       </section>
       <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4">
         <div className="flex justify-between text-sm"><span>Subtotal</span><strong>{reais(subtotal)}</strong></div>
+        {(() => {
+          const ganho = cashbackGanho(subtotal);
+          return (
+            <p className="bg-tenue px-3 py-2 text-xs">
+              {ganho !== null ? <>Esta compra gera <b>{reais(ganho)}</b> de cashback ({percentualCashbackGanho()}%).</> : <>Esta compra gera cashback Seleto para as próximas compras.</>}
+            </p>
+          );
+        })()}
         <p className="text-xs text-fraco">Desconto do Pix e entrega são calculados no próximo passo.</p>
         <Link href="/checkout" className="btn w-full">Finalizar pedido</Link>
         <Link href="/produtos" className="btn-claro w-full">Continuar comprando</Link>

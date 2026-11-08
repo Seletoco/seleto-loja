@@ -20,4 +20,9 @@ export const linkWhatsappDaLoja = (nome: string, texto: string): string | null =
   const n = (WHATS_GERAL || WHATS[NOME_PARA_ID[nome]] || "").replace(/\D/g, "");
   return n.length >= 10 ? `https://wa.me/${n.startsWith("55") ? n : `55${n}`}?text=${encodeURIComponent(texto)}` : null;
 };
+/** Link do WhatsApp geral de atendimento (só existe se NEXT_PUBLIC_WHATSAPP_SELETO estiver definido). */
+export const linkWhatsappGeral = (texto: string): string | null => {
+  const n = (WHATS_GERAL || "").replace(/\D/g, "");
+  return n.length >= 10 ? `https://wa.me/${n.startsWith("55") ? n : `55${n}`}?text=${encodeURIComponent(texto)}` : null;
+};
 export const LINK_AVALIACAO_GOOGLE = process.env.NEXT_PUBLIC_GOOGLE_AVALIACAO_URL || null;
