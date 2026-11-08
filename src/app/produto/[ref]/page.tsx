@@ -5,7 +5,8 @@ import { BlocoVantagensProduto } from "@/components/BlocoVantagensProduto";
 import { Fileira } from "@/components/Fileira";
 import { produtoPorRef, relacionados } from "@/lib/catalogo";
 import { reais } from "@/lib/format";
-import { cashbackGanho, percentualCashbackGanho } from "@/lib/vantagens";
+import { faixaCashback } from "@/lib/vantagens";
+import { regrasCashback } from "@/lib/regras-servidor";
 
 export default async function ProdutoPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;
@@ -13,6 +14,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
   if (!p) notFound();
   const desconto = p.precoDe ? Math.round(((p.precoDe - p.preco) / p.precoDe) * 100) : 0;
   const parecidos = relacionados(p, 10);
+  const regras = await regrasCashback();
 
   return (
     <div className="space-y-14">
@@ -48,7 +50,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
 
           <AdicionarAoCarrinho p={p} />
 
-          <BlocoVantagensProduto nome={p.nome} ganho={cashbackGanho(p.preco)} percentual={percentualCashbackGanho()} />
+          <BlocoVantagensProduto nome={p.nome} faixa={faixaCashback(p.preco, regras.ganhoMinPct, regras.ganhoMaxPct)} minPct={regras.ganhoMinPct} maxPct={regras.ganhoMaxPct} />
 
           <div className="divide-y divide-borda border-y border-borda text-sm">
             <Info titulo="Entrega para todo o Brasil" aberto>

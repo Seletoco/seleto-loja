@@ -1,17 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cashbackGanho } from "./vantagens";
+import { faixaCashback } from "./vantagens";
 
-test("não promete valor quando o percentual não foi definido", () => {
-  assert.equal(cashbackGanho(500, null), null);
+test("calcula a faixa pelos percentuais do sistema, arredondando para baixo", () => {
+  assert.deepEqual(faixaCashback(199.99, 10, 15), { min: 19.99, max: 29.99 });
+  assert.deepEqual(faixaCashback(100, 10, 10), { min: 10, max: 10 });
 });
 
-test("calcula pelo percentual, arredondando para baixo", () => {
-  assert.equal(cashbackGanho(199.99, 5), 9.99);
-  assert.equal(cashbackGanho(100, 10), 10);
-});
-
-test("ignora valor inválido", () => {
-  assert.equal(cashbackGanho(0, 5), null);
-  assert.equal(cashbackGanho(-10, 5), null);
+test("ignora valor ou percentual inválido", () => {
+  assert.equal(faixaCashback(0, 10, 15), null);
+  assert.equal(faixaCashback(-10, 10, 15), null);
+  assert.equal(faixaCashback(100, 0, 15), null);
+  assert.equal(faixaCashback(100, 15, 10), null);
 });

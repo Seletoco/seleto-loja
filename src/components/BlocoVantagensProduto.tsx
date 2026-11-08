@@ -12,13 +12,15 @@ import { reais } from "@/lib/format";
  */
 export function BlocoVantagensProduto({
   nome,
-  ganho,
-  percentual,
+  faixa,
+  minPct,
+  maxPct,
 }: {
   nome: string;
-  /** Cashback que esta compra gera (null se o percentual ainda não foi definido). */
-  ganho: number | null;
-  percentual: number | null;
+  /** Cashback que esta compra gera, pelas regras do sistema. */
+  faixa: { min: number; max: number } | null;
+  minPct: number;
+  maxPct: number;
 }) {
   const [lojaId, trocar] = useLojaPreferida();
   const loja = LOJAS.find((l) => String(l.id) === lojaId);
@@ -52,8 +54,12 @@ export function BlocoVantagensProduto({
       <section className="border border-borda bg-tenue p-4">
         <p className="font-black uppercase tracking-wide">Cashback Seleto</p>
         <p className="mt-1 text-fraco">
-          {ganho !== null && percentual !== null ? (
-            <>Esta compra gera <b className="text-texto">{reais(ganho)}</b> de cashback ({percentual}%) para você usar em compras futuras.</>
+          {faixa ? (
+            <>
+              Esta compra gera de <b className="text-texto">{reais(faixa.min)}</b>
+              {faixa.max !== faixa.min ? <> a <b className="text-texto">{reais(faixa.max)}</b></> : null} de cashback
+              ({minPct === maxPct ? `${minPct}%` : `${minPct}% a ${maxPct}%, conforme a forma de pagamento`}) para usar em compras futuras.
+            </>
           ) : (
             <>Compre e ganhe cashback para usar nas próximas compras.</>
           )}{" "}

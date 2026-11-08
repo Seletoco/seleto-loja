@@ -1,25 +1,18 @@
 /**
  * CONFIGURAÇÃO DAS VANTAGENS MOSTRADAS NA LOJA (cashback, níveis, confiança).
  *
- * Nada aqui inventa número: o que ainda não foi definido pelo Victor fica `null`/`exemplo: true`
- * e a tela mostra o texto genérico (ou "(exemplo)"). Para valer de verdade, defina na Vercel
- * (ou troque aqui) quando as regras forem decididas.
+ * Percentuais e prazos do cashback NÃO ficam aqui: vêm do sistema (`regras-servidor.ts`).
+ * Aqui só ficam os benefícios por nível (provisórios até o Victor definir) e números de confiança opcionais.
  */
 
 /**
- * % de cashback que o cliente GANHA numa compra (regra de geração, hoje em `cashback_regras` no banco).
- * Defina `NEXT_PUBLIC_CASHBACK_PERCENTUAL` (ex.: 5) só quando o valor for o real. Sem isso, a loja
- * fala em "ganhe cashback" sem prometer valor.
+ * Faixa de cashback que uma compra de `valor` gera, pelas regras do sistema (o % depende da forma de pagamento
+ * escolhida no caixa: ver `regrasCashback()`). Sempre arredonda para baixo. Função pura.
  */
-export const percentualCashbackGanho = (): number | null => {
-  const n = Number(process.env.NEXT_PUBLIC_CASHBACK_PERCENTUAL);
-  return Number.isFinite(n) && n > 0 && n <= 100 ? n : null;
-};
-
-/** Quanto de cashback uma compra de `valor` gera (ou null se o percentual não foi definido). Função pura. */
-export function cashbackGanho(valor: number, percentual: number | null = percentualCashbackGanho()): number | null {
-  if (percentual === null || !(valor > 0)) return null;
-  return Math.floor(valor * percentual) / 100;
+export function faixaCashback(valor: number, minPct: number, maxPct: number): { min: number; max: number } | null {
+  if (!(valor > 0) || !(minPct > 0) || !(maxPct >= minPct)) return null;
+  const f = (p: number) => Math.floor(valor * p) / 100;
+  return { min: f(minPct), max: f(maxPct) };
 }
 
 export interface BeneficioNivel {

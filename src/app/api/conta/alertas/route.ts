@@ -8,6 +8,7 @@ const MAX_ATIVOS = 10;
 export async function POST(req: Request) {
   const s = await sessaoAtual();
   if (!s) return NextResponse.json({ erro: "Sessão expirada." }, { status: 401 });
+  if (!s.cpfHash) return NextResponse.json({ erro: "Ligue sua conta ao cadastro da Seleto primeiro (CPF e celular)." }, { status: 403 });
   const c = (await req.json().catch(() => null)) as { descricao?: unknown; tamanho?: unknown; remover?: unknown } | null;
   if (!c) return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
 

@@ -10,7 +10,8 @@ import { LOJAS } from "@/lib/lojas";
 import { lerLojaPreferida } from "@/lib/loja-preferida";
 import { formaDaEntrega } from "@/lib/pagamento";
 import type { PedidoSalvo } from "@/lib/tipos";
-import { regraDeUso, situacaoDoCashback } from "@/lib/regra-cashback";
+import { situacaoDoCashback } from "@/lib/regra-cashback";
+import { regraDeUsoDe, useRegrasCashback } from "@/lib/use-regras-cashback";
 import type { RespostaConta } from "../api/conta/route";
 import type { RespostaFrete } from "../api/frete/route";
 import { cepValido } from "@/lib/frete";
@@ -51,7 +52,8 @@ export default function Checkout() {
   const [consultando, setConsultando] = useState(false);
   const [erroCashback, setErroCashback] = useState("");
   const [usarCashback, setUsarCashback] = useState(false);
-  const regra = regraDeUso();
+  const regras = useRegrasCashback();
+  const regra = useMemo(() => regraDeUsoDe(regras), [regras]);
 
   const forma = formaDaEntrega(entrega);
   const desconto = useMemo(() => Math.round(subtotal * forma.descontoPct) / 100, [subtotal, forma]);
@@ -295,7 +297,7 @@ export default function Checkout() {
                   <span>
                     <strong>Usar {reais(situacao.utilizavel)} de cashback neste pedido</strong>
                     <span className="block text-xs text-fraco">
-                      Regra: compras a partir de {reais(regra.compraMinima)}{regra.exemplo ? " (exemplo)" : ""}. A loja confirma o uso antes de separar o pedido.
+                      Cobre até {regra.tetoPercentualDaCompra}% do valor da compra{regra.exemplo ? " (regra de reserva)" : ""}. A loja confirma o uso antes de separar o pedido.
                     </span>
                   </span>
                 </label>
