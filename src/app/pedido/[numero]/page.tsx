@@ -45,7 +45,7 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
           <strong>Entrega:</strong>{" "}
           {pedido.entrega.tipo === "retirada_loja" ? `Retirar na loja ${pedido.entrega.loja}` : `Entrega ${pedido.entrega.servico ?? ""} (até ${pedido.entrega.prazoDias ?? "—"} dias úteis) — ${pedido.entrega.endereco}`}
         </p>
-        <p><strong>Pagamento:</strong> {pedido.pagamento.rotulo} (exemplo, sem cobrança)</p>
+        <p><strong>Pagamento:</strong> {pedido.pagamento.rotulo} (sem cobrança pelo site)</p>
       </section>
       <section className="rounded-lg border border-borda bg-painel p-4">
         <ul className="divide-y divide-borda text-sm">

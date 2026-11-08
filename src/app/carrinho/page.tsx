@@ -54,7 +54,7 @@ export default function Carrinho() {
             </p>
           );
         })()}
-        <p className="text-xs text-fraco">Desconto do Pix e entrega são calculados no próximo passo.</p>
+        <p className="text-xs text-fraco">A entrega é calculada no próximo passo.</p>
         <Link href="/checkout" className="btn w-full">Finalizar pedido</Link>
         <Link href="/produtos" className="btn-claro w-full">Continuar comprando</Link>
       </aside>

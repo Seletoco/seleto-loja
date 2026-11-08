@@ -8,7 +8,7 @@ import { dataBr, digitos, reais } from "@/lib/format";
 import { cpfValido, formatarCpf, soDigitos } from "@/lib/cpf";
 import { LOJAS } from "@/lib/lojas";
 import { lerLojaPreferida } from "@/lib/loja-preferida";
-import { FORMAS_PAGAMENTO } from "@/lib/pagamento";
+import { formaDaEntrega } from "@/lib/pagamento";
 import type { PedidoSalvo } from "@/lib/tipos";
 import { regraDeUso, situacaoDoCashback } from "@/lib/regra-cashback";
 import type { RespostaConta } from "../api/conta/route";
@@ -43,7 +43,6 @@ export default function Checkout() {
   const [servico, setServico] = useState<"PAC" | "SEDEX" | null>(null);
   const [calculando, setCalculando] = useState(false);
   const [erroFrete, setErroFrete] = useState("");
-  const [pagamento, setPagamento] = useState<(typeof FORMAS_PAGAMENTO)[number]["id"]>("pix");
   const [erro, setErro] = useState("");
 
   // Cashback: o cliente confirma celular + 3 primeiros dígitos do CPF; o site mostra o que ele pode usar.
@@ -54,7 +53,7 @@ export default function Checkout() {
   const [usarCashback, setUsarCashback] = useState(false);
   const regra = regraDeUso();
 
-  const forma = FORMAS_PAGAMENTO.find((f) => f.id === pagamento)!;
+  const forma = formaDaEntrega(entrega);
   const desconto = useMemo(() => Math.round(subtotal * forma.descontoPct) / 100, [subtotal, forma]);
 
   const telefoneAtual = digitos(telefone).slice(-11);
@@ -308,17 +307,9 @@ export default function Checkout() {
           ) : null}
         </Secao>
 
-        <Secao titulo="4. Pagamento (exemplo)">
-          {FORMAS_PAGAMENTO.map((f) => (
-            <Escolha
-              key={f.id}
-              ativo={pagamento === f.id}
-              onClick={() => setPagamento(f.id)}
-              titulo={f.rotulo + (f.descontoPct ? ` — ${f.descontoPct}% off` : "")}
-              texto={f.descricao}
-            />
-          ))}
-          <p className="text-xs text-fraco">Nenhuma cobrança é feita neste ambiente de teste.</p>
+        <Secao titulo="4. Pagamento">
+          <Escolha ativo onClick={() => {}} titulo={forma.rotulo} texto={forma.descricao} />
+          <p className="text-xs text-fraco">Nenhuma cobrança é feita pelo site.</p>
         </Secao>
       </div>
 

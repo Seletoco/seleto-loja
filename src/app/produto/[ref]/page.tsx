@@ -12,7 +12,6 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
   const p = produtoPorRef(ref);
   if (!p) notFound();
   const desconto = p.precoDe ? Math.round(((p.precoDe - p.preco) / p.precoDe) * 100) : 0;
-  const parcela = Math.round((p.preco / 6) * 100) / 100;
   const parecidos = relacionados(p, 10);
 
   return (
@@ -44,7 +43,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
               {reais(p.preco)}
               {p.precoDe ? <span className="ml-3 text-base font-normal text-fraco line-through">{reais(p.precoDe)}</span> : null}
             </p>
-            <p className="mt-1 text-sm text-fraco">ou 6x de {reais(parcela)} sem juros (exemplo) · Pix com 5% off</p>
+            
           </div>
 
           <AdicionarAoCarrinho p={p} />

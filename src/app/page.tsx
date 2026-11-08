@@ -59,7 +59,7 @@ export default function Home() {
         {[
           ["Entrega para todo o Brasil", "Frete e prazo no pedido"],
           ["Retire grátis na loja", "Sem fila, em 4 lojas", "/produtos"],
-          ["5% off no Pix", "Exemplo de condição", ""],
+          ["Atendimento no WhatsApp", "Tire dúvidas antes de comprar", ""],
           ["Cashback Seleto", "Ganhe e use nas próximas compras", "/conta"],
         ].map(([t, d, href]) => {
           const miolo = (
