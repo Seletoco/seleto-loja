@@ -23,8 +23,8 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
         <Link href={`/produtos?categoria=${encodeURIComponent(p.categoria)}`} className="hover:underline">{p.categoria}</Link> / <span className="text-texto">{p.nome}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_440px]">
-        <div className="relative aspect-square bg-tenue lg:aspect-[5/4]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="relative aspect-square bg-tenue lg:aspect-[5/4] lg:self-start">
           {p.foto ? (
             // eslint-disable-next-line @next/next/no-img-element -- fotos vêm do catálogo (domínio externo)
             <img src={p.foto} alt={p.nome} className="foto-produto size-full object-contain p-6" />
@@ -60,7 +60,8 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
               Retire sem fila em uma das nossas lojas: Américas, Aerotown, Nova Iguaçu ou Taquara. É grátis.
             </Info>
             <Info titulo="Trocas">
-              A loja confirma a disponibilidade antes de separar o pedido. Trocas nas lojas (política a revisar).
+              A loja confirma a disponibilidade antes de separar o pedido.{" "}
+              <Link href="/trocas" className="font-bold text-texto underline underline-offset-4">Veja como funcionam as trocas e devoluções.</Link>
             </Info>
           </div>
         </div>

@@ -8,16 +8,18 @@ import { reais } from "@/lib/format";
 
 const q = (v: string) => encodeURIComponent(v);
 
-export function Cabecalho({ menu }: { menu: DadosMenu }) {
+export function Cabecalho({ menu, teste }: { menu: DadosMenu; teste: boolean }) {
   const { quantidade, pronto, abrir } = useCarrinho();
   const [mobile, setMobile] = useState(false);
   const [busca, setBusca] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-white">
-      <div className="bg-destaque px-4 py-1 text-center text-[11px] font-bold uppercase tracking-wide text-texto">
-        Ambiente de teste — pedidos e pagamentos são só de exemplo
-      </div>
+      {teste ? (
+        <div className="bg-destaque px-4 py-1 text-center text-[11px] font-bold uppercase tracking-wide text-texto">
+          Ambiente de teste — pedidos e pagamentos são só de exemplo
+        </div>
+      ) : null}
       <div className="border-b border-borda">
         <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-4 px-4">
           <button className="lg:hidden" onClick={() => setMobile(true)} aria-label="Menu">

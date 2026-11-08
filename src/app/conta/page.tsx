@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
+import { MODO_REAL } from "@/lib/modo";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
 import { BENEFICIOS_POR_NIVEL, BENEFICIOS_SAO_EXEMPLO } from "@/lib/vantagens";
 
@@ -191,7 +192,7 @@ function LoginCpf({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
       <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
       {erro ? <p className="text-sm text-promo">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Entrando…" : "Entrar"}</button>
-      <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>
+      {MODO_REAL ? null : <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>}
     </form>
   );
 }

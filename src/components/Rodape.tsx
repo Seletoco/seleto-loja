@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LOJAS } from "@/lib/lojas";
+import { MODO_REAL } from "@/lib/modo";
 
 export function Rodape() {
   return (
@@ -22,12 +23,12 @@ export function Rodape() {
         </Col>
         <Col titulo="Ajuda">
           <li>Entregamos para todo o Brasil</li>
-          <li>Trocas e devoluções (modelo a revisar)</li>
-          <li>Política de privacidade (modelo a revisar)</li>
+          <li><Link href="/trocas" className="hover:text-white">Trocas e devoluções</Link></li>
+          <li><Link href="/privacidade" className="hover:text-white">Política de privacidade</Link></li>
         </Col>
       </div>
       <div className="border-t border-white/15 px-6 py-5 text-center text-xs text-white/50">
-        © Seleto — ambiente de teste. Pedidos e pagamentos são só de exemplo.
+        {MODO_REAL ? "© Seleto. Todos os direitos reservados." : "© Seleto — ambiente de teste. Pedidos e pagamentos são só de exemplo."}
       </div>
     </footer>
   );

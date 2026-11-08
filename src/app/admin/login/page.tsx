@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { COOKIE, admLogado, credenciaisValidas, criarToken, opcoesCookie, usandoCredencialDeTeste } from "@/lib/admin";
+import { COOKIE, adminBloqueado, admLogado, credenciaisValidas, criarToken, opcoesCookie, usandoCredencialDeTeste } from "@/lib/admin";
 
 async function entrar(formData: FormData) {
   "use server";
@@ -23,10 +23,13 @@ export default async function LoginAdmin({ searchParams }: { searchParams: Promi
         {erro ? <p className="text-sm text-promo">Usuário ou senha incorretos.</p> : null}
         <button className="btn w-full">Entrar</button>
       </form>
-      {usandoCredencialDeTeste() ? (
+      {adminBloqueado() ? (
+        <p className="rounded-md border border-promo/40 bg-white p-3 text-xs text-promo">
+          Admin bloqueado: defina <code>ADMIN_USUARIO</code>, <code>ADMIN_SENHA</code> (12+ caracteres) e <code>ADMIN_SEGREDO</code> (16+ caracteres) na Vercel.
+        </p>
+      ) : usandoCredencialDeTeste() ? (
         <p className="rounded-md border border-borda bg-tenue p-3 text-xs text-fraco">
-          Credenciais de <strong>teste</strong> ativas (usuário <code>admin</code>, senha <code>seleto-teste-2026</code>).
-          Defina <code>ADMIN_USUARIO</code> e <code>ADMIN_SENHA</code> na Vercel para trocar.
+          Modo de teste: use as credenciais de teste do README. Defina <code>ADMIN_USUARIO</code> e <code>ADMIN_SENHA</code> na Vercel para trocar.
         </p>
       ) : null}
     </div>
