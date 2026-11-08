@@ -4,11 +4,12 @@ Site separado do catálogo e do sistema em produção. **Não altera nada do que
 
 ## Estado
 - Vitrine, busca/filtros, produto, carrinho, checkout, confirmação do pedido: **prontos**.
-- **Pagamento: só exemplo** (Pix, cartão, pagar na retirada), sem cobrança. Veja `src/lib/pagamento.ts`.
-- Pedidos de teste ficam **no navegador** (localStorage) até ligar o banco.
+- **Pagamento em aberto:** o site não cobra. Retirada → "Pagar na retirada"; entrega em casa → "Combinar pelo WhatsApp". Pix e cartão foram retirados até ligar um provedor. Veja `src/lib/pagamento.ts`.
+- **Pedidos:** com o banco ligado, o checkout grava em `loja.pedidos` (o servidor recalcula preços e total) e o `/admin` lê de lá. Sem banco (demonstração), ficam no navegador (localStorage).
+- **Conta do cliente:** e-mail + senha (hash scrypt) em `loja.contas`, com passo de ligar ao cadastro da Seleto por **CPF + celular** conferidos no PDVNet. Enquanto não houver código por WhatsApp, a sessão fica "não verificada" (sem histórico de compras). Um CPF liga a uma conta só.
 - **Área do cliente** (`/conta`): **CPF completo** (validado); 10 consultas/hora por rede. Mostra só o primeiro nome e os valores.
   Em demonstração, use o CPF `529.982.247-25`.
-- **Admin** (`/admin`): usuário `admin` / senha `seleto-teste-2026` (TESTE). Troque com `ADMIN_USUARIO`/`ADMIN_SENHA`.
+- **Admin** (`/admin`): em modo de teste (sem banco) vale um par de teste embutido em `src/lib/admin.ts`. **Com o banco ligado, o admin fica bloqueado** até definir `ADMIN_USUARIO`, `ADMIN_SENHA` (12+) e `ADMIN_SEGREDO` (16+) na Vercel.
 - Produtos hoje vêm de `data/produtos.json` (instantâneo do catálogo). Gerar de novo:
   `python3 scripts/gerar-dados.py /caminho/seleto-catalogo/cliente.html`
 
@@ -16,6 +17,13 @@ Site separado do catálogo e do sistema em produção. **Não altera nada do que
 `supabase/migrations/001_loja_schema.sql` (já aplicada) cria o esquema `loja`, 3 tabelas novas e views de **leitura**
 (`v_produtos`, `v_variacoes`, `v_cashback`, `v_cliente_verificacao`) e o perfil `loja_app` (sem login).
 Para ligar: rode `002_ligar_perfil_loja_app.sql` no SQL Editor com uma senha sua e defina `LOJA_DATABASE_URL` na Vercel.
+**Migrations 007 (regras de cashback + pedidos) e 008 (contas) estão escritas e NÃO foram aplicadas**: só aplicar quando o Victor disser. Sem a 007/008, regras caem no padrão e pedidos/contas por e-mail não funcionam.
+
+## Ir ao ar (modo real)
+1. Aplicar migrations 002 (com senha sua), 007 e 008 (com autorização).
+2. Na Vercel: `LOJA_DATABASE_URL`, `LOJA_SESSAO_SECRET`, `ADMIN_*`, e `NEXT_PUBLIC_MODO_REAL=1` (antes do build). Nomes em `.env.example`.
+3. Preencher dados da empresa (`NEXT_PUBLIC_EMPRESA_*`) e prazo de troca (`NEXT_PUBLIC_TROCA_DIAS`); revisar `/privacidade` e `/trocas` com um advogado.
+4. Conferir um pedido de ponta a ponta (retirada e entrega) e o `/admin`.
 
 ## Riscos conhecidos
 - O estoque do banco atrasa algumas horas: só vendemos variação com 2+ em estoque; a loja confirma antes de separar.
@@ -35,12 +43,10 @@ em letras grandes. Já incluídas: `adidas`, `nike`, `newbalance`, `fila`.
 Faltam (use a logo oficial do kit de revendedor de cada marca): `farm`, `thugnine`, `champion`, `barracrew`, `vans`,
 `approve`, `rafrow`, `newera`. Prefira SVG preto (o botão inverte para branco no mouse) ou PNG preto com fundo transparente.
 
-## Cashback no checkout
-No passo 3 do checkout o cliente digita o CPF (mesma consulta da área `/conta`) e vê **"Pode usar agora"** x **"Libera em breve"**. Só dá para usar a partir da compra mínima.
-A regra fica em `src/lib/regra-cashback.ts` (`regraDeUso()`), hoje com VALORES DE EXEMPLO: compra mínima R$ 500 e teto de 100%
-do subtotal. Quando a regra passar a ser definida no sistema, troque só essa função por uma leitura do banco.
-O pedido guarda o cashback pedido; **a loja confirma e dá baixa** (a loja online não consome o saldo sozinha).
-Hoje a consulta considera o cashback gerado pelo Seleto (`cashback_concessoes`); os bônus do PDVNet ainda não entram.
+## Cashback (regras do sistema)
+O percentual ganho, os prazos e o teto de uso **vêm do sistema** (`loja.v_regras_cashback` e `loja.v_cashback_formas`, migration 007), lidos por `src/lib/regras-servidor.ts`. Hoje: ganha de 10% a 15% (depende da forma de pagamento no caixa), libera em 7 dias, vale 30 dias, cobre até 20% da compra, sem compra mínima. Sem banco, usa esse mesmo padrão marcado como "reserva".
+No passo 3 do checkout o cliente digita o CPF e vê **"Pode usar agora"** x **"Libera em breve"**. O pedido guarda o cashback pedido (limitado ao teto); **a loja confirma e dá baixa** (a loja online não consome o saldo sozinha).
+A consulta considera o cashback Seleto (`cashback_concessoes`); os bônus do PDVNet foram desativados e não entram.
 
 ## Frete pelos Correios (por CEP)
 Em "Entrega para todo o Brasil" o cliente digita o CEP: o endereço é preenchido (ViaCEP) e o frete é cotado em `/api/frete`.

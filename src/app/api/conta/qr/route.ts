@@ -14,6 +14,7 @@ const VALE_S = 600;
 export async function GET() {
   const s = await sessaoAtual();
   if (!s) return NextResponse.json({ erro: "Sessão expirada." }, { status: 401 });
+  if (!s.cpfHash) return NextResponse.json({ erro: "Ligue sua conta ao cadastro da Seleto primeiro (CPF e celular)." }, { status: 403 });
   const segredo = process.env.LOJA_SESSAO_SECRET ?? (bancoLigado() ? "" : "somente-demonstracao-sem-banco");
   if (!segredo) return NextResponse.json({ erro: "indisponível" }, { status: 503 });
   const exp = Math.floor(Date.now() / 1000) + VALE_S;

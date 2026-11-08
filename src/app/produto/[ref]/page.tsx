@@ -1,17 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdicionarAoCarrinho } from "@/components/AdicionarAoCarrinho";
+import { BlocoVantagensProduto } from "@/components/BlocoVantagensProduto";
 import { Fileira } from "@/components/Fileira";
 import { produtoPorRef, relacionados } from "@/lib/catalogo";
 import { reais } from "@/lib/format";
+import { faixaCashback } from "@/lib/vantagens";
+import { regrasCashback } from "@/lib/regras-servidor";
 
 export default async function ProdutoPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;
   const p = produtoPorRef(ref);
   if (!p) notFound();
   const desconto = p.precoDe ? Math.round(((p.precoDe - p.preco) / p.precoDe) * 100) : 0;
-  const parcela = Math.round((p.preco / 6) * 100) / 100;
   const parecidos = relacionados(p, 10);
+  const regras = await regrasCashback();
 
   return (
     <div className="space-y-14">
@@ -20,8 +23,8 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
         <Link href={`/produtos?categoria=${encodeURIComponent(p.categoria)}`} className="hover:underline">{p.categoria}</Link> / <span className="text-texto">{p.nome}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_440px]">
-        <div className="relative aspect-square bg-tenue lg:aspect-[5/4]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="relative aspect-square bg-tenue lg:aspect-[5/4] lg:self-start">
           {p.foto ? (
             // eslint-disable-next-line @next/next/no-img-element -- fotos vêm do catálogo (domínio externo)
             <img src={p.foto} alt={p.nome} className="foto-produto size-full object-contain p-6" />
@@ -42,20 +45,23 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
               {reais(p.preco)}
               {p.precoDe ? <span className="ml-3 text-base font-normal text-fraco line-through">{reais(p.precoDe)}</span> : null}
             </p>
-            <p className="mt-1 text-sm text-fraco">ou 6x de {reais(parcela)} sem juros (exemplo) · Pix com 5% off</p>
+            
           </div>
 
           <AdicionarAoCarrinho p={p} />
+
+          <BlocoVantagensProduto nome={p.nome} faixa={faixaCashback(p.preco, regras.ganhoMinPct, regras.ganhoMaxPct)} minPct={regras.ganhoMinPct} maxPct={regras.ganhoMaxPct} />
 
           <div className="divide-y divide-borda border-y border-borda text-sm">
             <Info titulo="Entrega para todo o Brasil" aberto>
               Calculamos o frete e o prazo com você no pedido, pelo WhatsApp, antes de cobrar. Entregamos em todos os estados.
             </Info>
             <Info titulo="Retirada na loja">
-              Retire sem fila em uma das nossas lojas: Américas, Aerotown, Nova Iguaçu ou Taquara.
+              Retire sem fila em uma das nossas lojas: Américas, Aerotown, Nova Iguaçu ou Taquara. É grátis.
             </Info>
             <Info titulo="Trocas">
-              A loja confirma a disponibilidade antes de separar o pedido. Trocas nas lojas (política a revisar).
+              A loja confirma a disponibilidade antes de separar o pedido.{" "}
+              <Link href="/trocas" className="font-bold text-texto underline underline-offset-4">Veja como funcionam as trocas e devoluções.</Link>
             </Info>
           </div>
         </div>

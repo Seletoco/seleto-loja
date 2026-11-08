@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useCarrinho } from "@/lib/carrinho";
 import { reais } from "@/lib/format";
+import { faixaCashback } from "@/lib/vantagens";
+import { useRegrasCashback } from "@/lib/use-regras-cashback";
 
 export default function Carrinho() {
   const { itens, subtotal, pronto, alterar, remover } = useCarrinho();
+  const regras = useRegrasCashback();
   if (!pronto) return <p className="text-fraco">Carregando…</p>;
   if (itens.length === 0) {
     return (
@@ -45,7 +48,15 @@ export default function Carrinho() {
       </section>
       <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4">
         <div className="flex justify-between text-sm"><span>Subtotal</span><strong>{reais(subtotal)}</strong></div>
-        <p className="text-xs text-fraco">Desconto do Pix e entrega são calculados no próximo passo.</p>
+        {(() => {
+          const f = faixaCashback(subtotal, regras.ganhoMinPct, regras.ganhoMaxPct);
+          return (
+            <p className="bg-tenue px-3 py-2 text-xs">
+              {f ? <>Esta compra gera de <b>{reais(f.min)}</b>{f.max !== f.min ? <> a <b>{reais(f.max)}</b></> : null} de cashback (o percentual depende da forma de pagamento no caixa).</> : <>Esta compra gera cashback Seleto para as próximas compras.</>}
+            </p>
+          );
+        })()}
+        <p className="text-xs text-fraco">A entrega é calculada no próximo passo.</p>
         <Link href="/checkout" className="btn w-full">Finalizar pedido</Link>
         <Link href="/produtos" className="btn-claro w-full">Continuar comprando</Link>
       </aside>

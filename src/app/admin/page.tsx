@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { COOKIE, admLogado, usandoCredencialDeTeste } from "@/lib/admin";
+import { bancoLigado } from "@/lib/db";
+import { listarPedidos } from "@/lib/pedidos-admin";
 import { PainelPedidos } from "./painel";
 
 async function sair() {
@@ -11,6 +13,7 @@ async function sair() {
 
 export default async function Admin() {
   if (!(await admLogado())) redirect("/admin/login");
+  const doBanco = bancoLigado() ? await listarPedidos() : undefined;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -24,7 +27,7 @@ export default async function Admin() {
           Você está usando as credenciais de teste. Defina ADMIN_USUARIO e ADMIN_SENHA na Vercel antes de ir ao ar.
         </p>
       ) : null}
-      <PainelPedidos />
+      <PainelPedidos doBanco={doBanco} />
     </div>
   );
 }

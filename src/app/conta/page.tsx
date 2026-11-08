@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
+import { MODO_REAL } from "@/lib/modo";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
+import { BENEFICIOS_POR_NIVEL, BENEFICIOS_SAO_EXEMPLO } from "@/lib/vantagens";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
 const diasAte = (iso: string) => Math.round((new Date(iso + "T00:00:00Z").getTime() - new Date(hoje() + "T00:00:00Z").getTime()) / 86_400_000);
@@ -13,25 +15,154 @@ const post = (url: string, corpo: object) => fetch(url, { method: "POST", header
 const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
 type Aba = "cashback" | "compras" | "vantagens" | "nivel" | "ajustes";
+const ABAS: Aba[] = ["cashback", "compras", "vantagens", "nivel", "ajustes"];
+/** Só roda no navegador (a área só monta depois do login), então pode ler a URL direto. */
+const paramDaUrl = (nome: string) => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(nome));
+
+/** Conta por e-mail ainda sem ligação com o cadastro da Seleto. */
+interface SemVinculo {
+  vinculo: false;
+  nome: string;
+  email: string | null;
+}
+type Carregado = DadosConta | SemVinculo;
+const semVinculo = (d: Carregado): d is SemVinculo => (d as SemVinculo).vinculo === false;
 
 export default function Conta() {
   const [dados, setDados] = useState<DadosConta | null>(null);
+  const [pendente, setPendente] = useState<SemVinculo | null>(null);
   const [verificando, setVerificando] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/conta/dados").then(async (r) => { if (r.ok) setDados(await r.json()); }).finally(() => setVerificando(false));
+  const receber = useCallback((d: Carregado) => {
+    if (semVinculo(d)) {
+      setDados(null);
+      setPendente(d);
+    } else {
+      setPendente(null);
+      setDados(d);
+    }
   }, []);
+  async function recarregar(): Promise<boolean> {
+    const r = await fetch("/api/conta/dados");
+    if (!r.ok) return false;
+    receber(await r.json());
+    return true;
+  }
+
+  useEffect(() => {
+    fetch("/api/conta/dados")
+      .then(async (r) => { if (r.ok) receber(await r.json()); })
+      .finally(() => setVerificando(false));
+  }, [receber]);
 
   async function sair() {
     await fetch("/api/conta/sair", { method: "POST" });
     setDados(null);
+    setPendente(null);
   }
 
   if (verificando) return <p className="py-10 text-center text-fraco">Carregando…</p>;
-  return dados ? <Area dados={dados} sair={sair} /> : <Login aoEntrar={(d) => setDados(d)} />;
+  if (dados) return <Area dados={dados} sair={sair} />;
+  if (pendente) return <Vincular pendente={pendente} aoLigar={recarregar} sair={sair} />;
+  return <Login aoEntrar={receber} />;
 }
 
-function Login({ aoEntrar }: { aoEntrar: (d: DadosConta) => void }) {
+function Login({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
+  const [modo, setModo] = useState<"email" | "cpf">("email");
+  return (
+    <div className="mx-auto max-w-sm space-y-3">
+      <div className="grid grid-cols-2 border border-borda text-xs font-bold uppercase tracking-wide">
+        <button type="button" onClick={() => setModo("email")} className={`py-3 ${modo === "email" ? "bg-texto text-white" : "hover:bg-tenue"}`}>E-mail e senha</button>
+        <button type="button" onClick={() => setModo("cpf")} className={`py-3 ${modo === "cpf" ? "bg-texto text-white" : "hover:bg-tenue"}`}>Só consultar com CPF</button>
+      </div>
+      {modo === "email" ? <LoginEmail aoEntrar={aoEntrar} /> : <LoginCpf aoEntrar={aoEntrar} />}
+    </div>
+  );
+}
+
+function LoginEmail({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
+  const [criando, setCriando] = useState(false);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setCarregando(true);
+    try {
+      const r = await post(criando ? "/api/conta/cadastrar" : "/api/conta/login", criando ? { nome, email, senha } : { email, senha });
+      if (!r.ok) return setErro((await r.json().catch(() => ({}))).erro ?? "Não foi possível continuar.");
+      const d = await fetch("/api/conta/dados");
+      if (d.ok) aoEntrar(await d.json());
+      else setErro("Não foi possível carregar seus dados.");
+    } catch {
+      setErro("Sem conexão. Tente novamente.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={enviar} className="space-y-3 rounded-xl border border-borda bg-painel p-6">
+      <h1 className="text-xl font-bold">{criando ? "Criar minha conta" : "Entrar na minha conta"}</h1>
+      <p className="text-sm text-fraco">
+        {criando ? "Depois de criar, você liga a conta ao seu cadastro da Seleto com CPF e celular." : "Use o e-mail e a senha que você cadastrou."}
+      </p>
+      {criando ? <input className="campo" placeholder="Seu nome" maxLength={60} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="given-name" /> : null}
+      <input className="campo" type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+      <input className="campo" type="password" placeholder={criando ? "Crie uma senha (mínimo 8 caracteres)" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete={criando ? "new-password" : "current-password"} required />
+      {erro ? <p className="text-sm text-promo">{erro}</p> : null}
+      <button className="btn w-full" disabled={carregando}>{carregando ? "Aguarde…" : criando ? "Criar conta" : "Entrar"}</button>
+      <button type="button" onClick={() => { setCriando(!criando); setErro(""); }} className="w-full text-center text-xs font-bold underline underline-offset-4">
+        {criando ? "Já tenho conta" : "Ainda não tenho conta"}
+      </button>
+    </form>
+  );
+}
+
+/** Passo 2 da conta por e-mail: liga ao cadastro da Seleto conferindo CPF + celular. */
+function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: () => Promise<boolean>; sair: () => void }) {
+  const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  async function ligar(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
+    setCarregando(true);
+    try {
+      const r = await post("/api/conta/vincular", { cpf, telefone });
+      if (!r.ok) return setErro((await r.json().catch(() => ({}))).erro ?? "Não foi possível ligar a conta.");
+      if (!(await aoLigar())) setErro("Ligamos, mas não foi possível carregar seus dados. Atualize a página.");
+    } catch {
+      setErro("Sem conexão. Tente novamente.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={ligar} className="mx-auto max-w-sm space-y-3 rounded-xl border border-borda bg-painel p-6">
+      <h1 className="text-xl font-bold">Olá{pendente.nome ? `, ${pendente.nome}` : ""}!</h1>
+      <p className="text-sm text-fraco">
+        Sua conta {pendente.email ? <b className="text-texto">{pendente.email}</b> : null} foi criada. Agora ligue ao seu cadastro da Seleto para ver seu cashback e seu nível: informe o CPF e o celular que você usa nas nossas lojas.
+      </p>
+      <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
+      <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" required />
+      {erro ? <p className="text-sm text-promo">{erro}</p> : null}
+      <button className="btn w-full" disabled={carregando}>{carregando ? "Conferindo…" : "Ligar ao meu cadastro"}</button>
+      <p className="text-xs text-fraco">Seu CPF é usado só para conferir o cadastro e não fica guardado. Nunca foi cliente nas lojas? Sua conta continua valendo e o cashback aparece depois da primeira compra.</p>
+      <button type="button" onClick={sair} className="w-full text-center text-xs font-bold underline underline-offset-4">Sair</button>
+    </form>
+  );
+}
+
+function LoginCpf({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
   const [cpf, setCpf] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -55,13 +186,13 @@ function Login({ aoEntrar }: { aoEntrar: (d: DadosConta) => void }) {
   }
 
   return (
-    <form onSubmit={entrar} className="mx-auto max-w-sm space-y-3 rounded-xl border border-borda bg-painel p-6">
+    <form onSubmit={entrar} className="space-y-3 rounded-xl border border-borda bg-painel p-6">
       <h1 className="text-xl font-bold">Minha conta Seleto</h1>
       <p className="text-sm text-fraco">Digite seu CPF para ver seu cashback e seu nível.</p>
       <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
       {erro ? <p className="text-sm text-promo">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Entrando…" : "Entrar"}</button>
-      <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>
+      {MODO_REAL ? null : <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>}
     </form>
   );
 }
@@ -79,7 +210,7 @@ function Icone({ d }: { d: string }) {
 const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", vantagens: "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
 
 function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
-  const [aba, setAba] = useState<Aba>("cashback");
+  const [aba, setAba] = useState<Aba>(() => ABAS.find((a) => a === paramDaUrl("aba")) ?? "cashback");
   const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["vantagens", "Vantagens"], ["nivel", "Nível"], ["ajustes", "Ajustes"]];
   const n = dados.nivel;
   const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).reduce((s, c) => s + c.valor, 0);
@@ -267,6 +398,7 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
           <div><p className="text-3xl font-black">{reais(n.gasto12m)}</p><p className="text-xs text-fraco">em compras</p></div>
         </div>
       </div>
+      {BENEFICIOS_SAO_EXEMPLO ? <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Benefícios em definição (exemplo)</p> : null}
       <ul className="space-y-2">
         {regras.map(([nome, regra]) => {
           const atingido = ordem.indexOf(n.nome) >= ordem.indexOf(nome);
@@ -277,6 +409,9 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
                 <div>
                   <p className="font-black uppercase">{nome}</p>
                   <p className="text-xs text-fraco">{regra}</p>
+                  <ul className="mt-1 list-disc pl-4 text-xs">
+                    {(BENEFICIOS_POR_NIVEL.find((b) => b.nivel === nome)?.beneficios ?? []).map((b) => <li key={b}>{b}</li>)}
+                  </ul>
                 </div>
               </div>
               <span className={`text-xs font-bold uppercase ${atingido ? "text-ok" : "text-fraco"}`}>{atingido ? "Conquistado" : "A conquistar"}</span>
@@ -303,7 +438,7 @@ function Chave({ ligado, aoMudar, titulo, texto }: { ligado: boolean; aoMudar: (
 function AbaAjustes({ dados }: { dados: DadosConta }) {
   const [pref, setPref] = useState<Preferencias>(dados.preferencias);
   const [alertas, setAlertas] = useState<Alerta[]>(dados.alertas);
-  const [descricao, setDescricao] = useState("");
+  const [descricao, setDescricao] = useState(() => (paramDaUrl("aviso") ?? "").slice(0, 120));
   const [tamanho, setTamanho] = useState("");
   const [msg, setMsg] = useState("");
 

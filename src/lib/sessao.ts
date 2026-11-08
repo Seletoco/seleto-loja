@@ -15,7 +15,11 @@ function segredo(): string {
 const assinar = (corpo: string) => createHmac("sha256", segredo()).update(corpo).digest("base64url");
 
 export interface Sessao {
+  /** Hash do CPF do cadastro ligado. Vazio ("") = conta por e-mail ainda NÃO ligada ao cadastro da Seleto. */
   cpfHash: string;
+  /** Conta por e-mail e senha (loja.contas), se a pessoa entrou assim. */
+  contaId?: string;
+  email?: string;
   nome: string;
   /** true só quando o cliente provou ter o WhatsApp (código). Hoje o login é só por CPF, então fica false. */
   verificado: boolean;
@@ -36,7 +40,7 @@ export function lerToken(token: string | undefined): Sessao | null {
   try {
     const d = JSON.parse(Buffer.from(corpo, "base64url").toString("utf8")) as Sessao & { exp: number };
     if (!d.exp || d.exp < Date.now() / 1000) return null;
-    return { cpfHash: d.cpfHash, nome: d.nome, verificado: d.verificado === true };
+    return { cpfHash: d.cpfHash, nome: d.nome, verificado: d.verificado === true, contaId: d.contaId, email: d.email };
   } catch {
     return null;
   }

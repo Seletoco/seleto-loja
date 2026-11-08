@@ -1,9 +1,8 @@
 /**
  * REGRA DE USO DO CASHBACK NA LOJA ONLINE.
  *
- * VALORES DE EXEMPLO — serão definidos no sistema. Para mudar agora, edite aqui; quando a regra passar a morar no
- * sistema (ex.: uma tabela/tela de configuração), basta trocar `regraDeUso()` por uma leitura do banco: o checkout
- * e o servidor só falam com esta função.
+ * A regra de verdade vem do sistema (ver `regras-servidor.ts` e `use-regras-cashback.ts`). Esta função é só a reserva
+ * usada quando o banco não está ligado.
  *
  * Observação: `cashback_regras` do banco é a regra de GERAÇÃO do cashback (percentual, valor mínimo para ganhar),
  * não a de uso — por isso não foi reaproveitada aqui.
@@ -17,7 +16,8 @@ export interface RegraDeUso {
   exemplo: boolean;
 }
 
-export const regraDeUso = (): RegraDeUso => ({ compraMinima: 500, tetoPercentualDaCompra: 100, exemplo: true });
+/** Reserva (sem banco): o teto de 20% e a ausência de compra mínima são os do sistema em 08/11/2026. Com o banco ligado vale `regrasCashback()`. */
+export const regraDeUso = (): RegraDeUso => ({ compraMinima: 0, tetoPercentualDaCompra: 20, exemplo: true });
 
 export interface CashbackDoCliente {
   valor: number;

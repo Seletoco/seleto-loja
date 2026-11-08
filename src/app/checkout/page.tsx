@@ -7,9 +7,12 @@ import { useCarrinho } from "@/lib/carrinho";
 import { dataBr, digitos, reais } from "@/lib/format";
 import { cpfValido, formatarCpf, soDigitos } from "@/lib/cpf";
 import { LOJAS } from "@/lib/lojas";
-import { FORMAS_PAGAMENTO } from "@/lib/pagamento";
+import { MODO_REAL } from "@/lib/modo";
+import { lerLojaPreferida } from "@/lib/loja-preferida";
+import { formaDaEntrega } from "@/lib/pagamento";
 import type { PedidoSalvo } from "@/lib/tipos";
-import { regraDeUso, situacaoDoCashback } from "@/lib/regra-cashback";
+import { situacaoDoCashback } from "@/lib/regra-cashback";
+import { regraDeUsoDe, useRegrasCashback } from "@/lib/use-regras-cashback";
 import type { RespostaConta } from "../api/conta/route";
 import type { RespostaFrete } from "../api/frete/route";
 import { cepValido } from "@/lib/frete";
@@ -18,6 +21,7 @@ export const CHAVE_PEDIDOS = "seleto-loja:pedidos";
 
 /** Hoje em Brasília, AAAA-MM-DD. */
 /** Número do pedido de exemplo (os 7 últimos dígitos do relógio). */
+const post = (url: string, corpo: object) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
 const novoNumeroDePedido = () => Number(String(Date.now()).slice(-7));
 
 const hojeBr = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
@@ -29,7 +33,7 @@ export default function Checkout() {
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [entrega, setEntrega] = useState<"retirada_loja" | "entrega_combinada">("retirada_loja");
-  const [loja, setLoja] = useState<string>(String(LOJAS[0].id));
+  const [loja, setLoja] = useState<string>(() => (typeof window === "undefined" ? null : lerLojaPreferida()) ?? String(LOJAS[0].id));
   // Entrega para todo o Brasil: CEP -> endereço (ViaCEP) + frete (Correios, ou estimativa de exemplo).
   const [cep, setCep] = useState("");
   const [logradouro, setLogradouro] = useState("");
@@ -42,8 +46,8 @@ export default function Checkout() {
   const [servico, setServico] = useState<"PAC" | "SEDEX" | null>(null);
   const [calculando, setCalculando] = useState(false);
   const [erroFrete, setErroFrete] = useState("");
-  const [pagamento, setPagamento] = useState<(typeof FORMAS_PAGAMENTO)[number]["id"]>("pix");
   const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   // Cashback: o cliente confirma celular + 3 primeiros dígitos do CPF; o site mostra o que ele pode usar.
   const [cpf, setCpf] = useState("");
@@ -51,9 +55,10 @@ export default function Checkout() {
   const [consultando, setConsultando] = useState(false);
   const [erroCashback, setErroCashback] = useState("");
   const [usarCashback, setUsarCashback] = useState(false);
-  const regra = regraDeUso();
+  const regras = useRegrasCashback();
+  const regra = useMemo(() => regraDeUsoDe(regras), [regras]);
 
-  const forma = FORMAS_PAGAMENTO.find((f) => f.id === pagamento)!;
+  const forma = formaDaEntrega(entrega);
   const desconto = useMemo(() => Math.round(subtotal * forma.descontoPct) / 100, [subtotal, forma]);
 
   const telefoneAtual = digitos(telefone).slice(-11);
@@ -146,7 +151,7 @@ export default function Checkout() {
     );
   }
 
-  function finalizar(e: React.FormEvent) {
+  async function finalizar(e: React.FormEvent) {
     e.preventDefault();
     const tel = digitos(telefone);
     if (nome.trim().length < 3) return setErro("Informe seu nome completo.");
@@ -156,7 +161,8 @@ export default function Checkout() {
       if (!opcaoEscolhida) return setErro("Escolha a forma de envio (PAC ou SEDEX).");
       if (logradouro.trim().length < 3 || !numeroEnd.trim() || cidade.trim().length < 2 || uf.trim().length !== 2) return setErro("Complete o endereço: rua, número, cidade e estado.");
     }
-    // Pedido de EXEMPLO: fica só neste navegador. Ao ligar o banco, grava em loja.pedidos.
+    // Com o banco ligado, o servidor grava em loja.pedidos (e recalcula preços e total). Sem banco, fica só neste navegador.
+    if (enviando) return;
     const numero = novoNumeroDePedido();
     const pedido: PedidoSalvo = {
       numero,
@@ -180,10 +186,40 @@ export default function Checkout() {
       total,
       status: forma.id === "pagar_na_loja" ? "aguardando_retirada" : "aguardando_pagamento",
     };
+    setEnviando(true);
+    setErro("");
+    try {
+      const r = await post("/api/pedidos", {
+        itens: itens.map((i) => ({ ref: i.ref, tamanho: i.tamanho, quantidade: i.quantidade })),
+        cliente: pedido.cliente,
+        entrega: pedido.entrega,
+        frete: pedido.frete,
+        cashback: pedido.cashback ?? null,
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setErro(j.erro ?? "Não foi possível registrar o pedido. Tente novamente.");
+        return;
+      }
+      if (typeof j.numero === "number") {
+        // Pedido gravado no banco: vale o número e os valores que o servidor recalculou.
+        pedido.numero = j.numero;
+        pedido.subtotal = j.subtotal;
+        pedido.frete = j.frete;
+        pedido.total = j.total;
+        pedido.cashback = j.cashbackUsado > 0 && pedido.cashback ? { ...pedido.cashback, usado: j.cashbackUsado } : undefined;
+        pedido.status = "aguardando_pagamento";
+      }
+    } catch {
+      setErro("Sem conexão. Seu pedido NÃO foi enviado. Tente novamente.");
+      return;
+    } finally {
+      setEnviando(false);
+    }
     const antigos = JSON.parse(localStorage.getItem(CHAVE_PEDIDOS) ?? "[]");
     localStorage.setItem(CHAVE_PEDIDOS, JSON.stringify([pedido, ...antigos]));
     limpar();
-    router.push(`/pedido/${numero}`);
+    router.push(`/pedido/${pedido.numero}`);
   }
 
   return (
@@ -263,7 +299,7 @@ export default function Checkout() {
                 </button>
               </div>
               {erroCashback ? <p className="text-sm text-promo">{erroCashback}</p> : null}
-              <p className="text-xs text-fraco">Seu CPF é usado só para a consulta e não fica guardado. Teste: 529.982.247-25.</p>
+              <p className="text-xs text-fraco">Seu CPF é usado só para a consulta e não fica guardado.{MODO_REAL ? "" : " Teste: 529.982.247-25."}</p>
             </>
           ) : situacao && situacao.disponivel + situacao.aLiberar === 0 ? (
             <p className="text-sm text-fraco">Olá, {dadosCashback.nome}! Não encontramos cashback ativo neste celular.</p>
@@ -295,7 +331,7 @@ export default function Checkout() {
                   <span>
                     <strong>Usar {reais(situacao.utilizavel)} de cashback neste pedido</strong>
                     <span className="block text-xs text-fraco">
-                      Regra: compras a partir de {reais(regra.compraMinima)}{regra.exemplo ? " (exemplo)" : ""}. A loja confirma o uso antes de separar o pedido.
+                      Cobre até {regra.tetoPercentualDaCompra}% do valor da compra{regra.exemplo ? " (regra de reserva)" : ""}. A loja confirma o uso antes de separar o pedido.
                     </span>
                   </span>
                 </label>
@@ -307,17 +343,9 @@ export default function Checkout() {
           ) : null}
         </Secao>
 
-        <Secao titulo="4. Pagamento (exemplo)">
-          {FORMAS_PAGAMENTO.map((f) => (
-            <Escolha
-              key={f.id}
-              ativo={pagamento === f.id}
-              onClick={() => setPagamento(f.id)}
-              titulo={f.rotulo + (f.descontoPct ? ` — ${f.descontoPct}% off` : "")}
-              texto={f.descricao}
-            />
-          ))}
-          <p className="text-xs text-fraco">Nenhuma cobrança é feita neste ambiente de teste.</p>
+        <Secao titulo="4. Pagamento">
+          <Escolha ativo onClick={() => {}} titulo={forma.rotulo} texto={forma.descricao} />
+          <p className="text-xs text-fraco">Nenhuma cobrança é feita pelo site.</p>
         </Secao>
       </div>
 
@@ -338,7 +366,7 @@ export default function Checkout() {
         <Linha rotulo={opcaoEscolhida ? `Frete ${opcaoEscolhida.nome}` : "Entrega"} valor={entrega === "retirada_loja" ? "Grátis (retirada)" : opcaoEscolhida ? reais(opcaoEscolhida.valor) : "Informe o CEP"} />
         <div className="flex justify-between text-lg font-black"><span>Total</span><span>{reais(total)}</span></div>
         {erro ? <p className="text-sm text-promo">{erro}</p> : null}
-        <button type="submit" className="btn w-full">Fazer pedido</button>
+        <button type="submit" className="btn w-full" disabled={enviando}>{enviando ? "Enviando…" : "Fazer pedido"}</button>
       </aside>
     </form>
   );

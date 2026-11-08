@@ -1,5 +1,6 @@
 "use client";
 
+import { MODO_REAL } from "@/lib/modo";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { reais, telefoneBonito } from "@/lib/format";
@@ -33,10 +34,10 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="rounded-xl border border-borda bg-painel p-6 text-center">
-        <p className="text-sm font-semibold text-ok">Pedido recebido (teste)</p>
+        <p className="text-sm font-semibold text-ok">{MODO_REAL ? "Pedido recebido" : "Pedido recebido (teste)"}</p>
         <h1 className="mt-1 text-3xl font-black">Nº {pedido.numero}</h1>
         <p className="mt-2 text-sm text-fraco">
-          Status: <strong>{pedido.status.replaceAll("_", " ")}</strong>. Em produção, a loja confirma a disponibilidade e avisa você pelo WhatsApp.
+          Status: <strong>{pedido.status.replaceAll("_", " ")}</strong>. A loja confirma a disponibilidade e avisa você pelo WhatsApp. O pagamento é combinado com a loja: o site não cobra.
         </p>
       </div>
       <section className="space-y-2 rounded-lg border border-borda bg-painel p-4 text-sm">
@@ -45,7 +46,7 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
           <strong>Entrega:</strong>{" "}
           {pedido.entrega.tipo === "retirada_loja" ? `Retirar na loja ${pedido.entrega.loja}` : `Entrega ${pedido.entrega.servico ?? ""} (até ${pedido.entrega.prazoDias ?? "—"} dias úteis) — ${pedido.entrega.endereco}`}
         </p>
-        <p><strong>Pagamento:</strong> {pedido.pagamento.rotulo} (exemplo, sem cobrança)</p>
+        <p><strong>Pagamento:</strong> {pedido.pagamento.rotulo} (sem cobrança pelo site)</p>
       </section>
       <section className="rounded-lg border border-borda bg-painel p-4">
         <ul className="divide-y divide-borda text-sm">

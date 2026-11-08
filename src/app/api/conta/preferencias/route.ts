@@ -6,6 +6,7 @@ import { sessaoAtual } from "@/lib/sessao";
 export async function POST(req: Request) {
   const s = await sessaoAtual();
   if (!s) return NextResponse.json({ erro: "Sessão expirada." }, { status: 401 });
+  if (!s.cpfHash) return NextResponse.json({ erro: "Ligue sua conta ao cadastro da Seleto primeiro (CPF e celular)." }, { status: 403 });
   const c = (await req.json().catch(() => null)) as { avisosCashback?: unknown; avisosPromocoes?: unknown } | null;
   if (!c || typeof c.avisosCashback !== "boolean" || typeof c.avisosPromocoes !== "boolean") return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   if (bancoLigado()) {
