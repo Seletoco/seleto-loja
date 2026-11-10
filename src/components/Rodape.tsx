@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { LOJAS } from "@/lib/lojas";
+import { LOJAS, linkWhatsappGeral, telefoneGeral } from "@/lib/lojas";
+import { telefoneBonito } from "@/lib/format";
 import { MODO_REAL } from "@/lib/modo";
 
 export function Rodape() {
+  const tel = telefoneGeral();
+  const zap = linkWhatsappGeral("Olá! Vim pelo site da Seleto.");
   return (
     <footer className="mt-16 bg-texto text-white">
       <div className="mx-auto grid max-w-[1500px] gap-10 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
@@ -23,6 +26,7 @@ export function Rodape() {
         </Col>
         <Col titulo="Ajuda">
           <li>Entregamos para todo o Brasil</li>
+          {tel && zap ? <li><a href={zap} target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp: {telefoneBonito(tel)}</a></li> : null}
           <li><Link href="/trocas" className="hover:text-white">Trocas e devoluções</Link></li>
           <li><Link href="/privacidade" className="hover:text-white">Política de privacidade</Link></li>
         </Col>

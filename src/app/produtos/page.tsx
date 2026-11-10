@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ProdutoCard } from "@/components/ProdutoCard";
 import { buscar, categorias, garantirCatalogo, marcas, tamanhosDisponiveis, type Ordem } from "@/lib/catalogo";
+
+export const metadata: Metadata = { title: "Todos os produtos", alternates: { canonical: "/produtos" } };
 
 const POR_PAGINA = 24;
 type Q = { q?: string; categoria?: string; marca?: string; tamanho?: string; promo?: string; ordem?: string; pagina?: string };

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdicionarAoCarrinho } from "@/components/AdicionarAoCarrinho";
@@ -7,6 +8,27 @@ import { garantirCatalogo, produtoPorRef, relacionados } from "@/lib/catalogo";
 import { reais } from "@/lib/format";
 import { faixaCashback } from "@/lib/vantagens";
 import { regrasCashback } from "@/lib/regras-servidor";
+import { jsonLd } from "@/lib/json-ld";
+import { NOME_SITE, SITE_URL } from "@/lib/site";
+
+export const revalidate = 300; // acompanha o cache do catálogo (5 min)
+export const generateStaticParams = async () => []; // páginas geradas no primeiro acesso e guardadas por 5 min
+
+export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }): Promise<Metadata> {
+  const { ref } = await params;
+  await garantirCatalogo();
+  const p = produtoPorRef(ref);
+  if (!p) return { title: "Produto não encontrado", robots: { index: false } };
+  const descricao = `${p.nome}${p.cor ? ` — ${p.cor}` : ""} por ${reais(p.preco)}. ${p.marca} na Seleto: retire na loja ou receba em casa.`;
+  const caminho = `/produto/${encodeURIComponent(p.ref)}`;
+  return {
+    title: `${p.nome} — ${p.marca}`,
+    description: descricao,
+    alternates: { canonical: caminho },
+    openGraph: { type: "website", siteName: NOME_SITE, locale: "pt_BR", title: `${p.nome} — ${p.marca}`, description: descricao, url: caminho, ...(p.foto ? { images: [{ url: p.foto, alt: p.nome }] } : {}) },
+    twitter: { card: p.foto ? "summary_large_image" : "summary", title: `${p.nome} — ${p.marca}`, description: descricao, ...(p.foto ? { images: [p.foto] } : {}) },
+  };
+}
 
 export default async function ProdutoPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;
@@ -17,8 +39,28 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
   const parecidos = relacionados(p, 10);
   const regras = await regrasCashback();
 
+  const dadosProduto = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.nome,
+    sku: p.ref,
+    brand: { "@type": "Brand", name: p.marca },
+    category: p.categoria,
+    ...(p.cor ? { color: p.cor } : {}),
+    ...(p.foto ? { image: [p.foto] } : {}),
+    offers: {
+      "@type": "Offer",
+      url: `${SITE_URL}/produto/${encodeURIComponent(p.ref)}`,
+      priceCurrency: "BRL",
+      price: p.preco.toFixed(2),
+      availability: "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
+    },
+  };
+
   return (
     <div className="space-y-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(dadosProduto) }} />
       <nav className="text-xs text-fraco">
         <Link href="/" className="hover:underline">Início</Link> /{" "}
         <Link href={`/produtos?categoria=${encodeURIComponent(p.categoria)}`} className="hover:underline">{p.categoria}</Link> / <span className="text-texto">{p.nome}</span>
