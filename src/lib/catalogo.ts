@@ -34,30 +34,34 @@ const desligado = () => process.env.CATALOGO_DO_BANCO === "0";
  */
 export async function garantirCatalogo(): Promise<void> {
   if (!bancoLigado() || desligado()) return;
+  // Já tem uma leitura em andamento (outra parte da mesma página pediu agora): na primeira vez TODOS esperam por ela,
+  // senão alguém usaria o arquivo antigo (preço e produtos velhos) por engano.
+  if (emCurso) {
+    if (fonte !== "banco") await emCurso;
+    return;
+  }
   const agora = Date.now();
   if (fonte === "banco" && agora - leuEm < VALIDADE_MS) return;
   if (fonte !== "banco" && agora - tentouEm < NOVA_TENTATIVA_MS) return;
-  if (!emCurso) {
-    tentouEm = agora;
-    emCurso = (async () => {
-      try {
-        const lista = await lerCatalogoDoBanco(ARQUIVO_POR_REF, process.env.CATALOGO_SEM_FOTO !== "1");
-        if (lista.length >= MINIMO_DE_PRODUTOS) {
-          TODOS = lista;
-          fonte = "banco";
-          leuEm = Date.now();
-          ultimoErro = null;
-        } else {
-          ultimoErro = `leitura trouxe só ${lista.length} produtos (mínimo ${MINIMO_DE_PRODUTOS}); mantive o catálogo anterior`;
-        }
-      } catch (e) {
-        ultimoErro = e instanceof Error ? e.message : String(e);
-        console.error("catálogo: leitura do banco falhou, mantendo o anterior:", ultimoErro);
-      } finally {
-        emCurso = null;
+  tentouEm = agora;
+  emCurso = (async () => {
+    try {
+      const lista = await lerCatalogoDoBanco(ARQUIVO_POR_REF, process.env.CATALOGO_SEM_FOTO !== "1");
+      if (lista.length >= MINIMO_DE_PRODUTOS) {
+        TODOS = lista;
+        fonte = "banco";
+        leuEm = Date.now();
+        ultimoErro = null;
+      } else {
+        ultimoErro = `leitura trouxe só ${lista.length} produtos (mínimo ${MINIMO_DE_PRODUTOS}); mantive o catálogo anterior`;
       }
-    })();
-  }
+    } catch (e) {
+      ultimoErro = e instanceof Error ? e.message : String(e);
+      console.error("catálogo: leitura do banco falhou, mantendo o anterior:", ultimoErro);
+    } finally {
+      emCurso = null;
+    }
+  })();
   if (fonte !== "banco") await emCurso;
 }
 
