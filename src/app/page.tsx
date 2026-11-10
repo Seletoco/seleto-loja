@@ -73,24 +73,30 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(loja) }} />
       <Hero slides={slides} />
 
-      {/* benefícios */}
-      <section className="mx-auto grid max-w-[1500px] grid-cols-2 gap-px bg-borda px-0 sm:grid-cols-4">
+      {/* benefícios: cartões escuros com ícone, bem visíveis; o do WhatsApp abre a conversa quando o número está configurado */}
+      <section className="mx-auto grid max-w-[1500px] grid-cols-2 gap-3 px-4 sm:grid-cols-4">
         {[
-          ["Entrega para todo o Brasil", "Frete e prazo no pedido"],
-          ["Retire grátis na loja", "Sem fila, em 4 lojas", "/produtos"],
-          ["Atendimento no WhatsApp", "Tire dúvidas antes de comprar", ""],
-          ["Cashback Seleto", "Veja e use o seu saldo", "/conta"],
-        ].map(([t, d, href]) => {
+          { t: "Entrega para todo o Brasil", d: "Frete e prazo no pedido", href: "", icone: "M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" },
+          { t: "Retire grátis na loja", d: "Sem fila, em 4 lojas", href: "/produtos", icone: "M4 9l1-5h14l1 5M4 9v11h16V9M4 9h16M9 20v-6h6v6" },
+          { t: "Atendimento no WhatsApp", d: "Tire dúvidas antes de comprar", href: linkWhatsappGeral("Olá! Vim pelo site da Seleto.") ?? "", icone: "M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z" },
+          { t: "Cashback Seleto", d: "Veja e use o seu saldo", href: "/conta", icone: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
+        ].map(({ t, d, href, icone }) => {
           const miolo = (
             <>
-              <p className="text-xs font-black uppercase tracking-wide">{t}</p>
-              <p className="mt-1 text-xs text-fraco">{d}</p>
+              <span className="flex size-11 items-center justify-center rounded-full bg-destaque text-texto">
+                <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icone} /></svg>
+              </span>
+              <span className="mt-3 block text-sm font-black uppercase tracking-wide">{t}</span>
+              <span className="mt-1 block text-xs text-white/70">{d}</span>
             </>
           );
-          return href ? (
-            <Link key={t} href={href} className="bg-white px-5 py-5 text-center transition hover:bg-tenue">{miolo}</Link>
+          const base = "flex flex-col items-center bg-texto px-4 py-6 text-center text-white";
+          if (!href) return <div key={t} className={base}>{miolo}</div>;
+          const externo = href.startsWith("http");
+          return externo ? (
+            <a key={t} href={href} target="_blank" rel="noopener noreferrer" className={`${base} transition hover:-translate-y-0.5 hover:bg-black`}>{miolo}</a>
           ) : (
-            <div key={t} className="bg-white px-5 py-5 text-center">{miolo}</div>
+            <Link key={t} href={href} className={`${base} transition hover:-translate-y-0.5 hover:bg-black`}>{miolo}</Link>
           );
         })}
       </section>
