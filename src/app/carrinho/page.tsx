@@ -52,7 +52,7 @@ export default function Carrinho() {
           const f = faixaCashback(subtotal, regras.ganhoMinPct, regras.ganhoMaxPct);
           return (
             <p className="bg-tenue px-3 py-2 text-xs">
-              {f ? <>Esta compra gera de <b>{reais(f.min)}</b>{f.max !== f.min ? <> a <b>{reais(f.max)}</b></> : null} de cashback (o percentual depende da forma de pagamento no caixa).</> : <>Esta compra gera cashback Seleto para as próximas compras.</>}
+              {!regras.geraAgora ? <>O cashback desta compra volta em breve. Quem já tem saldo continua usando normalmente.</> : f ? <>Esta compra gera de <b>{reais(f.min)}</b>{f.max !== f.min ? <> a <b>{reais(f.max)}</b></> : null} de cashback (o percentual depende da forma de pagamento no caixa).</> : <>Esta compra gera cashback Seleto para as próximas compras.</>}
             </p>
           );
         })()}

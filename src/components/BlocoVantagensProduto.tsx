@@ -15,12 +15,15 @@ export function BlocoVantagensProduto({
   faixa,
   minPct,
   maxPct,
+  geraAgora,
 }: {
   nome: string;
   /** Cashback que esta compra gera, pelas regras do sistema. */
   faixa: { min: number; max: number } | null;
   minPct: number;
   maxPct: number;
+  /** O cashback automático está ligado no sistema? */
+  geraAgora: boolean;
 }) {
   const [lojaId, trocar] = useLojaPreferida();
   const loja = LOJAS.find((l) => String(l.id) === lojaId);
@@ -54,7 +57,9 @@ export function BlocoVantagensProduto({
       <section className="border border-borda bg-tenue p-4">
         <p className="font-black uppercase tracking-wide">Cashback Seleto</p>
         <p className="mt-1 text-fraco">
-          {faixa ? (
+          {!geraAgora ? (
+            <>O cashback desta compra volta em breve. Quem já tem saldo continua usando normalmente no caixa.</>
+          ) : faixa ? (
             <>
               Esta compra gera de <b className="text-texto">{reais(faixa.min)}</b>
               {faixa.max !== faixa.min ? <> a <b className="text-texto">{reais(faixa.max)}</b></> : null} de cashback

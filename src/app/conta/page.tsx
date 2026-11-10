@@ -6,7 +6,7 @@ import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
-import { BENEFICIOS_POR_NIVEL, BENEFICIOS_SAO_EXEMPLO } from "@/lib/vantagens";
+import { BENEFICIOS_POR_NIVEL, PORTA_DO_CLUBE } from "@/lib/vantagens";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
 const diasAte = (iso: string) => Math.round((new Date(iso + "T00:00:00Z").getTime() - new Date(hoje() + "T00:00:00Z").getTime()) / 86_400_000);
@@ -393,7 +393,7 @@ function PosVenda({ loja, data }: { loja: string; data: string }) {
 
 function AbaNivel({ dados }: { dados: DadosConta }) {
   const n = dados.nivel;
-  const regras: [string, string][] = [["Prata", "3 compras e R$ 1.000 em 12 meses"], ["Ouro", "R$ 2.000 em 12 meses"], ["Diamante", "R$ 4.000 em 12 meses"]];
+  const regras: [string, string][] = [["Prata", "Entrada no clube: 3 compras e R$ 1.000 em 12 meses"], ["Ouro", "R$ 2.000 em 12 meses"], ["Diamante", "R$ 4.000 em 12 meses"]];
   return (
     <div className="space-y-3">
       <div className="border border-borda bg-painel p-5">
@@ -403,7 +403,11 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
           <div><p className="text-3xl font-black">{reais(n.gasto12m)}</p><p className="text-xs text-fraco">em compras</p></div>
         </div>
       </div>
-      {BENEFICIOS_SAO_EXEMPLO ? <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Benefícios em definição (exemplo)</p> : null}
+      <div className="border border-borda bg-painel p-5 text-sm">
+        <p className="text-xs font-bold uppercase tracking-widest text-fraco">Como entrar e subir de nível</p>
+        <p className="mt-2">Para entrar no clube: <b>{PORTA_DO_CLUBE}</b>. Depois o nível sobe pelo valor comprado no ano: <b>Ouro</b> a partir de R$ 2.000 e <b>Diamante</b> a partir de R$ 4.000.</p>
+        {n.nome === "Cliente" ? <p className="mt-2 text-fraco">Você ainda não está no clube.{n.faltaCompras > 0 ? <> Faltam <b className="text-texto">{n.faltaCompras} {n.faltaCompras === 1 ? "compra" : "compras"}</b></> : null}{n.faltaCompras > 0 && n.faltaGasto > 0 ? " e " : null}{n.faltaGasto > 0 ? <><b className="text-texto">{reais(n.faltaGasto)}</b> em compras</> : null}{n.faltaCompras > 0 || n.faltaGasto > 0 ? " para entrar." : null}</p> : null}
+      </div>
       <ul className="grid gap-2 xl:grid-cols-3">
         {regras.map(([nome, regra]) => {
           const atingido = ordem.indexOf(n.nome) >= ordem.indexOf(nome);
