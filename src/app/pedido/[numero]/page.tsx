@@ -32,7 +32,7 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
     );
   }
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div className="rounded-xl border border-borda bg-painel p-6 text-center">
         <p className="text-sm font-semibold text-ok">{MODO_REAL ? "Pedido recebido" : "Pedido recebido (teste)"}</p>
         <h1 className="mt-1 text-3xl font-black">Nº {pedido.numero}</h1>
@@ -40,6 +40,7 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
           Status: <strong>{pedido.status.replaceAll("_", " ")}</strong>. A loja confirma a disponibilidade e avisa você pelo WhatsApp. O pagamento é combinado com a loja: o site não cobra.
         </p>
       </div>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
       <section className="space-y-2 rounded-lg border border-borda bg-painel p-4 text-sm">
         <p><strong>Cliente:</strong> {pedido.cliente.nome} · {telefoneBonito(pedido.cliente.telefone)}</p>
         <p>
@@ -65,7 +66,8 @@ export default function PedidoPage({ params }: { params: Promise<{ numero: strin
         ) : null}
         <div className="mt-3 flex justify-between text-lg font-black"><span>Total</span><span>{reais(pedido.total)}</span></div>
       </section>
-      <Link href="/produtos" className="btn-claro w-full">Continuar comprando</Link>
+      </div>
+      <Link href="/produtos" className="btn-claro w-full lg:mx-auto lg:w-auto lg:px-10">Continuar comprando</Link>
     </div>
   );
 }

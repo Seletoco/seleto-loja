@@ -70,13 +70,39 @@ export default function Conta() {
 function Login({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
   const [modo, setModo] = useState<"email" | "cpf">("email");
   return (
-    <div className="mx-auto max-w-sm space-y-3">
+    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-10">
+      <BoasVindas titulo="Sua conta Seleto" className="hidden lg:order-first lg:block" />
+      <div className="space-y-3">
       <div className="grid grid-cols-2 border border-borda text-xs font-bold uppercase tracking-wide">
         <button type="button" onClick={() => setModo("email")} className={`py-3 ${modo === "email" ? "bg-texto text-white" : "hover:bg-tenue"}`}>E-mail e senha</button>
         <button type="button" onClick={() => setModo("cpf")} className={`py-3 ${modo === "cpf" ? "bg-texto text-white" : "hover:bg-tenue"}`}>Só consultar com CPF</button>
       </div>
       {modo === "email" ? <LoginEmail aoEntrar={aoEntrar} /> : <LoginCpf aoEntrar={aoEntrar} />}
+      </div>
     </div>
+  );
+}
+
+/** Painel do lado do formulário no computador: o que a conta oferece (só o que já existe na loja). */
+function BoasVindas({ titulo, className = "" }: { titulo: string; className?: string }) {
+  const itens: [string, string][] = [
+    ["Cashback Seleto", "Veja seu saldo, quando libera e quando vence. Use nas lojas informando seu celular no caixa."],
+    ["Seu nível", "Acompanhe quanto falta para o próximo nível e o que você já conquistou."],
+    ["Lista VIP", "Receba ofertas e novidades da Seleto antes de todo mundo."],
+    ["Me avise quando chegar", "Peça o produto e o tamanho que você quer e avisamos quando chegar."],
+  ];
+  return (
+    <section className={className}>
+      <h2 className="titulao text-4xl xl:text-5xl">{titulo}</h2>
+      <div className="mt-6 grid gap-3 xl:grid-cols-2">
+        {itens.map(([t, d]) => (
+          <div key={t} className="border border-borda bg-painel p-5">
+            <p className="text-xs font-black uppercase tracking-widest">{t}</p>
+            <p className="mt-1 text-sm text-fraco">{d}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -147,7 +173,9 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
   }
 
   return (
-    <form onSubmit={ligar} className="mx-auto max-w-sm space-y-3 rounded-xl border border-borda bg-painel p-6">
+    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-10">
+    <BoasVindas titulo="Falta só ligar ao seu cadastro" className="hidden lg:order-first lg:block" />
+    <form onSubmit={ligar} className="space-y-3 rounded-xl border border-borda bg-painel p-6">
       <h1 className="text-xl font-bold">Olá{pendente.nome ? `, ${pendente.nome}` : ""}!</h1>
       <p className="text-sm text-fraco">
         Sua conta {pendente.email ? <b className="text-texto">{pendente.email}</b> : null} foi criada. Agora ligue ao seu cadastro da Seleto para ver seu cashback e seu nível: informe o CPF e o celular que você usa nas nossas lojas.
@@ -159,6 +187,7 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
       <p className="text-xs text-fraco">Seu CPF é usado só para conferir o cadastro e não fica guardado. Nunca foi cliente nas lojas? Sua conta continua valendo e o cashback aparece depois da primeira compra.</p>
       <button type="button" onClick={sair} className="w-full text-center text-xs font-bold underline underline-offset-4">Sair</button>
     </form>
+    </div>
   );
 }
 
@@ -220,7 +249,7 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
   const alvo = n.proximo === "Prata" ? 1000 : n.proximo === "Ouro" ? 2000 : n.proximo === "Diamante" ? 4000 : 4000;
   const pct = n.proximo ? Math.min(100, Math.round((n.gasto12m / alvo) * 100)) : 100;
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="mx-auto max-w-7xl space-y-5">
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-fraco">Minha conta</p>
@@ -230,7 +259,7 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
       </div>
       {dados.demo ? <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Dados de demonstração</p> : null}
 
-      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
         {/* coluna do resumo */}
         <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <section className="relative overflow-hidden bg-texto p-6 text-white">
@@ -290,7 +319,7 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
       {dados.cashbacks.length === 0 ? (
         <p className="border border-borda bg-painel p-8 text-center text-fraco">Você não tem cashback no momento. Ele aparece aqui depois da sua próxima compra.</p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {dados.cashbacks.map((c, i) => {
             const libera = diasAte(c.liberaEm);
             const vence = diasAte(c.venceEm);
@@ -315,11 +344,11 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
       {extrato.length > 0 ? (
         <section>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fraco">Extrato</h2>
-          <ul className="divide-y divide-borda border border-borda bg-painel text-sm">
+          <ul className="grid gap-2 text-sm md:grid-cols-2">
             {extrato.map((e, i) => {
               const venceu = e.saldo > 0 && diasAte(e.venceEm) < 0;
               return (
-                <li key={i} className="px-4 py-3">
+                <li key={i} className="border border-borda bg-painel px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-bold">Ganhou {reais(e.ganhou)}</span>
                     <span className="text-xs text-fraco">{dataBr(e.data)}</span>
@@ -344,7 +373,7 @@ function AbaCompras({ dados }: { dados: DadosConta }) {
   if (dados.comprasOcultas) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Por segurança, suas compras aparecem depois que ativarmos a confirmação por WhatsApp. Em breve!</p>;
   if (dados.compras.length === 0) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Nenhuma compra encontrada.</p>;
   return (
-    <ul className="space-y-3">
+    <ul className="grid items-start gap-3 xl:grid-cols-2">
       {dados.compras.map((c) => (
         <li key={c.id} className="border border-borda bg-painel">
           <div className="flex items-center justify-between gap-3 border-b border-borda bg-tenue px-4 py-3">
@@ -399,7 +428,7 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
         </div>
       </div>
       {BENEFICIOS_SAO_EXEMPLO ? <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Benefícios em definição (exemplo)</p> : null}
-      <ul className="space-y-2">
+      <ul className="grid gap-2 xl:grid-cols-3">
         {regras.map(([nome, regra]) => {
           const atingido = ordem.indexOf(n.nome) >= ordem.indexOf(nome);
           return (
@@ -463,7 +492,7 @@ function AbaAjustes({ dados }: { dados: DadosConta }) {
     await post("/api/conta/alertas", { remover: id });
   }
   return (
-    <div className="space-y-5">
+    <div className="grid items-start gap-5 xl:grid-cols-2">
       <section className="space-y-2">
         <h2 className="text-xs font-bold uppercase tracking-widest text-fraco">Mensagens no WhatsApp</h2>
         <Chave ligado={pref.avisosCashback} aoMudar={(v) => mudar({ ...pref, avisosCashback: v })} titulo="Avisos de cashback" texto="Quando você ganha cashback e quando ele está perto de vencer." />
@@ -531,7 +560,7 @@ function AbaVantagens({ dados }: { dados: DadosConta }) {
     }
   }
   return (
-    <div className="space-y-3">
+    <div className="grid items-start gap-3 xl:grid-cols-2">
       <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Lista VIP" texto="Entre no grupo VIP da Seleto e receba ofertas e novidades antes de todo mundo.">
         {dados.vipLink ? (
           <a href={dados.vipLink} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar na lista VIP</a>
