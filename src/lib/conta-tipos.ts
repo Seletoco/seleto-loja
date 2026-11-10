@@ -50,6 +50,11 @@ export interface DadosConta {
   vipLink: string | null;
   /** Código para indicar amigos (fixo por cliente). */
   codigoIndicacao: string;
+  /**
+   * Grupo VIP do NÍVEL do cliente no WhatsApp (Ouro -> grupo Ouro, Diamante -> grupo Diamante; Prata não tem grupo).
+   * null = fora desses níveis ou grupo sem link. O link nunca vai para quem não está nesse nível.
+   */
+  grupoVip: { nivel: "Ouro" | "Diamante"; nome: string; link: string } | null;
 }
 
 /** Mesma régua do SeleChat (src/lib/vip.ts): VIP = 3+ compras e R$ 1.000+ em 12 meses; Ouro R$ 2.000; Diamante R$ 4.000. */

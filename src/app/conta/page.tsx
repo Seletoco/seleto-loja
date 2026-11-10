@@ -541,6 +541,26 @@ function AbaVantagens({ dados }: { dados: DadosConta }) {
   }
   return (
     <div className="grid items-start gap-3 xl:grid-cols-2">
+      {dados.nivel.nome === "Ouro" || dados.nivel.nome === "Diamante" ? (
+        <Cartao
+          icone={ICONES.nivel}
+          titulo={`Grupo VIP ${dados.nivel.nome}`}
+          texto={dados.grupoVip ? `Você é ${dados.nivel.nome}. Peça a sua entrada no grupo exclusivo do seu nível, no WhatsApp. A entrada é por convite: a loja autoriza.` : `Você é ${dados.nivel.nome}. O grupo VIP do seu nível ainda não está disponível. Avisamos assim que abrir.`}
+          breve={!dados.grupoVip}
+        >
+          {dados.grupoVip ? (
+            <>
+              <a href={dados.grupoVip.link} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar no grupo VIP {dados.grupoVip.nivel}</a>
+              <p className="text-xs text-fraco">Este convite é só seu: não compartilhe o link.</p>
+            </>
+          ) : null}
+        </Cartao>
+      ) : (
+        <Cartao icone={ICONES.nivel} titulo="Grupo VIP Ouro e Diamante" texto="Os grupos VIP do WhatsApp são para quem chega ao nível Ouro (a partir de R$ 2.000 em compras nos últimos 12 meses, já dentro do clube) e ao Diamante (a partir de R$ 4.000).">
+          <p className="text-xs text-fraco">Veja na aba Nível quanto falta para chegar lá.</p>
+        </Cartao>
+      )}
+
       <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Lista VIP" texto="Entre no grupo VIP da Seleto e receba ofertas e novidades antes de todo mundo.">
         {dados.vipLink ? (
           <a href={dados.vipLink} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar na lista VIP</a>

@@ -34,6 +34,7 @@ export function dadosDemo(): DadosConta {
     alertas: [{ id: "d1", descricao: "Tênis de corrida", tamanho: "42" }],
     vipLink: "https://chat.whatsapp.com/exemplo",
     codigoIndicacao: "SELETO-A1B2C3",
+    grupoVip: null,
   };
 }
 
@@ -74,6 +75,17 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
     banco.query<{ link: string | null }>(`SELECT link FROM loja.v_vip_grupo WHERE vip_ativo LIMIT 1`),
   ]);
   if (cli.rows.length === 0) return null;
+  const nivel = calcularNivel(gasto.rows[0]?.compras ?? 0, Number(gasto.rows[0]?.gasto ?? 0));
+  // Grupo VIP do nível (migration 012). Sem a view, ou sem link, simplesmente não aparece o botão.
+  let grupoVip: DadosConta["grupoVip"] = null;
+  if (nivel.nome === "Ouro" || nivel.nome === "Diamante") {
+    try {
+      const g = await banco.query<{ nome: string; link: string }>(`SELECT nome, link FROM loja.v_grupo_vip_nivel WHERE nivel = $1 LIMIT 1`, [nivel.nome]);
+      if (g.rows[0]?.link) grupoVip = { nivel: nivel.nome, nome: g.rows[0].nome, link: g.rows[0].link };
+    } catch {
+      /* view ainda não existe */
+    }
+  }
   return {
     nome: cli.rows[0].primeiro_nome,
     demo: false,
@@ -88,10 +100,11 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
       cashbackUsado: Number(c.usado),
       itens: itens.rows.filter((i) => i.id === c.id).map((i) => ({ nome: i.nome, detalhe: [i.cor, i.tamanho].filter(Boolean).join(" · "), quantidade: Number(i.quantidade) })),
     })),
-    nivel: calcularNivel(gasto.rows[0]?.compras ?? 0, Number(gasto.rows[0]?.gasto ?? 0)),
+    nivel,
     preferencias: { avisosCashback: pref.rows[0]?.avisos_cashback ?? true, avisosPromocoes: pref.rows[0]?.avisos_promocoes ?? true },
     alertas: alr.rows.map((a) => ({ id: a.id, descricao: a.descricao, tamanho: a.tamanho })),
     vipLink: vip.rows[0]?.link ?? null,
     codigoIndicacao: codigoDeIndicacao(cpfHash),
+    grupoVip,
   };
 }
