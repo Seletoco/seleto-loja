@@ -26,3 +26,8 @@ export const linkWhatsappGeral = (texto: string): string | null => {
   return n.length >= 10 ? `https://wa.me/${n.startsWith("55") ? n : `55${n}`}?text=${encodeURIComponent(texto)}` : null;
 };
 export const LINK_AVALIACAO_GOOGLE = process.env.NEXT_PUBLIC_GOOGLE_AVALIACAO_URL || null;
+/** Número do atendimento geral (só dígitos, com 55), ou null se NEXT_PUBLIC_WHATSAPP_SELETO não estiver definido. */
+export const telefoneGeral = (): string | null => {
+  const n = (WHATS_GERAL || "").replace(/\D/g, "");
+  return n.length >= 10 ? (n.startsWith("55") ? n : `55${n}`) : null;
+};

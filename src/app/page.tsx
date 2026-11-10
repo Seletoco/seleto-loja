@@ -1,11 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Fileira } from "@/components/Fileira";
 import { MarcasEmDestaque } from "@/components/MarcasEmDestaque";
 import { Hero, type Slide } from "@/components/Hero";
 import { Reveal } from "@/components/Reveal";
-import { LOJAS, LINK_AVALIACAO_GOOGLE, linkWhatsappGeral } from "@/lib/lojas";
+import { LOJAS, LINK_AVALIACAO_GOOGLE, linkWhatsappGeral, telefoneGeral } from "@/lib/lojas";
+import { jsonLd } from "@/lib/json-ld";
+import { NOME_SITE, SITE_URL } from "@/lib/site";
 import { clientesAtendidos } from "@/lib/vantagens";
 import { buscar, categorias, fotoDaCategoria, garantirCatalogo, maiorDesconto, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
+
+export const revalidate = 300; // acompanha o cache do catálogo (5 min)
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function Home() {
   await garantirCatalogo();
@@ -51,8 +57,20 @@ export default async function Home() {
 
   const cats = categorias().filter((c) => !["Outros", "Farm"].includes(c.valor)).slice(0, 4);
   
+  const tel = telefoneGeral();
+  const loja = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    name: NOME_SITE,
+    url: SITE_URL,
+    description: "Tênis, roupas e acessórios das melhores marcas, em 4 lojas no Rio de Janeiro e entrega para todo o Brasil.",
+    ...(tel ? { telephone: `+${tel}` } : {}),
+    areaServed: "BR",
+  };
+
   return (
     <div className="space-y-14 pb-4 sm:space-y-20">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(loja) }} />
       <Hero slides={slides} />
 
       {/* benefícios */}

@@ -6,6 +6,9 @@ import { listarPedidos } from "@/lib/pedidos-admin";
 import { garantirCatalogo, statusDoCatalogo } from "@/lib/catalogo";
 import { PainelPedidos } from "./painel";
 
+// Painel depende do login (cookie) e do banco: nunca pré-gerar.
+export const dynamic = "force-dynamic";
+
 async function sair() {
   "use server";
   (await cookies()).delete(COOKIE);

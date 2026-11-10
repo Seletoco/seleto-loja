@@ -11,6 +11,8 @@ async function entrar(formData: FormData) {
   redirect("/admin");
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginAdmin({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
   if (await admLogado()) redirect("/admin");
   const { erro } = await searchParams;
