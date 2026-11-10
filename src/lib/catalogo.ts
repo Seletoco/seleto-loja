@@ -7,6 +7,7 @@
  * o site usa esse arquivo e segue funcionando. As funções abaixo continuam síncronas: as páginas chamam
  * `await garantirCatalogo()` antes de usá-las. `CATALOGO_DO_BANCO=0` (na Vercel) volta para o arquivo na hora.
  */
+import { generoDe, type Genero } from "./genero";
 import dados from "../../data/produtos.json";
 import { bancoLigado } from "./db";
 import { lerCatalogoDoBanco } from "./catalogo-banco";
@@ -83,6 +84,7 @@ export interface Filtro {
   marca?: string;
   tamanho?: string;
   promo?: boolean;
+  genero?: Genero;
   ordem?: Ordem;
 }
 
@@ -95,6 +97,7 @@ export function buscar(f: Filtro): Produto[] {
     if (f.marca && p.marca !== f.marca) return false;
     if (f.tamanho && !p.tamanhos.includes(f.tamanho)) return false;
     if (f.promo && !p.precoDe) return false;
+    if (f.genero && generoDe(p.nome) !== f.genero) return false;
     if (q.length) {
       const texto = semAcento(`${p.nome} ${p.marca} ${p.cor} ${p.categoria}`);
       return q.every((palavra) => texto.includes(palavra));
@@ -161,6 +164,11 @@ export interface DadosMenu {
   marcas: string[];
   destaques: Produto[];
   novos: Produto[];
+  /** Marcas que têm tênis, e 2 tênis para o painel de Tênis. */
+  marcasTenis: string[];
+  tenis: Produto[];
+  /** Masculino/Feminino: só aparece quando há produtos com o gênero identificável pelo nome. */
+  generos: { genero: Genero; categorias: string[]; destaques: Produto[]; total: number }[];
 }
 export function dadosMenu(): DadosMenu {
   const cats = categorias().map((c) => c.valor);
@@ -171,6 +179,16 @@ export function dadosMenu(): DadosMenu {
     marcas: marcas().slice(0, 12).map((m) => m.valor),
     destaques: promocoes(2),
     novos: novidades(2),
+    marcasTenis: contar((p) => p.categoria === "Tênis" ? p.marca : "").filter((m) => m.valor).map((m) => m.valor),
+    tenis: buscar({ categoria: "Tênis", ordem: "novo" }).filter((p) => p.foto).slice(0, 2),
+    generos: (["masculino", "feminino"] as Genero[])
+      .map((genero) => {
+        const lista = buscar({ genero, ordem: "novo" });
+        const cats = new Map<string, number>();
+        for (const p of lista) cats.set(p.categoria, (cats.get(p.categoria) ?? 0) + 1);
+        return { genero, categorias: [...cats].filter(([c]) => !["Outros", "Farm"].includes(c)).sort((a, b) => b[1] - a[1]).map(([c]) => c), destaques: lista.filter((p) => p.foto).slice(0, 2), total: lista.length };
+      })
+      .filter((g) => g.total > 0),
   };
 }
 

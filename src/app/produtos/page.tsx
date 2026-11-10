@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProdutoCard } from "@/components/ProdutoCard";
+import { ehGenero } from "@/lib/genero";
 import { buscar, categorias, garantirCatalogo, marcas, tamanhosDisponiveis, type Ordem } from "@/lib/catalogo";
 
 export const metadata: Metadata = { title: "Todos os produtos", alternates: { canonical: "/produtos" } };
 
 const POR_PAGINA = 24;
-type Q = { q?: string; categoria?: string; marca?: string; tamanho?: string; promo?: string; ordem?: string; pagina?: string };
+type Q = { q?: string; categoria?: string; marca?: string; tamanho?: string; promo?: string; genero?: string; ordem?: string; pagina?: string };
 
 const ORDENS: [string, string][] = [
   ["relevancia", "Relevância"],
@@ -20,7 +21,7 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
   const q = await searchParams;
   await garantirCatalogo();
   const ordem = (["menor", "maior", "promo", "novo"].includes(q.ordem ?? "") ? q.ordem : "relevancia") as Ordem;
-  const lista = buscar({ q: q.q, categoria: q.categoria, marca: q.marca, tamanho: q.tamanho, promo: q.promo === "1", ordem });
+  const lista = buscar({ q: q.q, categoria: q.categoria, marca: q.marca, tamanho: q.tamanho, promo: q.promo === "1", genero: ehGenero(q.genero) ? q.genero : undefined, ordem });
   const pagina = Math.max(1, Number(q.pagina) || 1);
   const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
   const visiveis = lista.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
@@ -31,8 +32,10 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
     for (const [k, v] of Object.entries(novo)) if (v) p.set(k, String(v));
     return `/produtos${p.size ? `?${p}` : ""}`;
   };
-  const titulo = q.categoria ?? q.marca ?? (q.promo === "1" ? "Ofertas" : q.q ? `“${q.q}”` : "Todos os produtos");
-  const filtrosAtivos = [q.categoria, q.marca, q.tamanho && `Tam. ${q.tamanho}`, q.promo === "1" && "Em promoção"].filter(Boolean) as string[];
+  const genero = ehGenero(q.genero) ? q.genero : undefined;
+  const nomeGenero = genero === "feminino" ? "Feminino" : genero === "masculino" ? "Masculino" : undefined;
+  const titulo = (nomeGenero ? `${nomeGenero}${q.categoria ? ` · ${q.categoria}` : ""}` : null) ?? q.categoria ?? q.marca ?? (q.promo === "1" ? "Ofertas" : q.q ? `“${q.q}”` : "Todos os produtos");
+  const filtrosAtivos = [nomeGenero, q.categoria, q.marca, q.tamanho && `Tam. ${q.tamanho}`, q.promo === "1" && "Em promoção"].filter(Boolean) as string[];
 
   return (
     <div className="space-y-6">
@@ -40,6 +43,7 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
         <div>
           <h1 className="titulao text-4xl sm:text-6xl">{titulo}</h1>
           <p className="mt-1 text-sm text-fraco">{lista.length} produtos</p>
+          {nomeGenero ? <p className="mt-1 max-w-xl text-xs text-fraco">Estamos identificando o gênero de cada produto: esta lista mostra os que já sabemos e pode estar incompleta. Veja também <Link href="/produtos" className="font-bold underline">todos os produtos</Link>.</p> : null}
         </div>
         <div className="flex flex-wrap gap-1.5 text-xs">
           {ORDENS.map(([v, r]) => (
@@ -65,6 +69,13 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
             {categorias().map((c) => (
               <Opcao key={c.valor} ativo={q.categoria === c.valor} href={href({ categoria: q.categoria === c.valor ? undefined : c.valor })}>
                 {c.valor} <span className="opacity-60">({c.n})</span>
+              </Opcao>
+            ))}
+          </Grupo>
+          <Grupo titulo="Gênero" aberto={Boolean(q.genero)}>
+            {(["masculino", "feminino"] as const).map((g) => (
+              <Opcao key={g} ativo={q.genero === g} href={href({ genero: q.genero === g ? undefined : g })}>
+                {g === "feminino" ? "Feminino" : "Masculino"}
               </Opcao>
             ))}
           </Grupo>

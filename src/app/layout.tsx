@@ -8,6 +8,7 @@ import { Sacola } from "@/components/Sacola";
 import { PopupEntrada } from "@/components/PopupEntrada";
 import { Miolo } from "@/components/Miolo";
 import { dadosMenu, garantirCatalogo } from "@/lib/catalogo";
+import { logosPorMarca } from "@/lib/logos";
 import { MODO_REAL, blackFridayAtiva } from "@/lib/modo";
 import { BalaoWhatsapp } from "@/components/BalaoWhatsapp";
 import { linkWhatsappGeral } from "@/lib/lojas";
@@ -29,12 +30,13 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await garantirCatalogo();
+  const menu = dadosMenu();
   const zap = linkWhatsappGeral("Olá! Vim pelo site da Seleto e queria uma ajuda.");
   return (
     <html lang="pt-BR" className={`${geist.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <CarrinhoProvider>
-          <Cabecalho menu={dadosMenu()} teste={!MODO_REAL} blackFriday={blackFridayAtiva()} />
+          <Cabecalho menu={menu} logos={logosPorMarca(menu.marcas.concat(menu.marcasTenis))} teste={!MODO_REAL} blackFriday={blackFridayAtiva()} />
           <Miolo>{children}</Miolo>
           <Rodape />
           <Sacola />
