@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
+import { nomeParaPreencher } from "@/lib/cpf-nome";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
 import { BENEFICIOS_POR_NIVEL, PORTA_DO_CLUBE } from "@/lib/vantagens";
@@ -157,6 +158,28 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
   const [telefone, setTelefone] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [dica, setDica] = useState("");
+
+  /** Com o CPF completo e válido, busca só o primeiro nome do cadastro para adiantar o preenchimento. */
+  async function aoDigitarCpf(valor: string) {
+    const formatado = formatarCpf(valor);
+    setCpf(formatado);
+    setDica("");
+    if (!cpfValido(formatado)) return;
+    try {
+      const r = await post("/api/conta/cpf-nome", { cpf: formatado });
+      if (!r.ok) return;
+      const { primeiroNome } = (await r.json()) as { primeiroNome: string | null };
+      if (primeiroNome) {
+        setNome((atual) => nomeParaPreencher(atual, primeiroNome));
+        setDica(`Encontramos um cadastro no nome de ${primeiroNome}. Complete com seu nome completo e confirme a data de nascimento e o celular.`);
+      } else {
+        setDica("Não encontramos esse CPF nas nossas lojas. Confira os números. Se você nunca comprou na Seleto, pode continuar comprando sem ligar a conta.");
+      }
+    } catch {
+      /* sem conexão: o cliente digita tudo e o servidor confere do mesmo jeito */
+    }
+  }
 
   async function ligar(e: React.FormEvent) {
     e.preventDefault();
@@ -187,7 +210,8 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
       <input className="campo" placeholder="Nome completo, como está no cadastro" maxLength={120} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" required />
       <label className="block text-xs font-bold uppercase tracking-wide text-fraco" htmlFor="nasc">Data de nascimento</label>
       <input id="nasc" className="campo !mt-1" type="date" min="1900-01-01" max={new Date().toISOString().slice(0, 10)} value={nascimento} onChange={(e) => setNascimento(e.target.value)} autoComplete="bday" required />
-      <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
+      <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => void aoDigitarCpf(e.target.value)} autoComplete="off" required />
+      {dica ? <p className="text-xs text-fraco" role="status">{dica}</p> : null}
       <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" required />
       {erro ? <p className="text-sm text-promo" role="alert">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Conferindo…" : "Ligar ao meu cadastro"}</button>
