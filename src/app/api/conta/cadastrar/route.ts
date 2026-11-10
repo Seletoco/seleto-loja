@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const email = String(c.email ?? "").trim().toLowerCase();
   const senha = String(c.senha ?? "");
   const nome = primeiroNome(String(c.nome ?? ""));
+  if (nome.length < 2) return NextResponse.json({ erro: "Informe seu nome, como está no seu cadastro da Seleto." }, { status: 400 });
   if (!emailValido(email)) return NextResponse.json({ erro: "Informe um e-mail válido." }, { status: 400 });
   const erroSenha = erroDeSenha(senha);
   if (erroSenha) return NextResponse.json({ erro: erroSenha }, { status: 400 });
