@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { bancoLigado, db } from "@/lib/db";
+import { bancoLigado } from "@/lib/db";
 import { produtoPorRef } from "@/lib/catalogo";
-import { validarPedido, type PedidoRecebido } from "@/lib/pedido-servidor";
+import { limitarCashbackAoSaldo, validarPedido, type PedidoRecebido } from "@/lib/pedido-servidor";
 import { regrasCashback } from "@/lib/regras-servidor";
-import { falhasRecentes, hashCurto, registrarTentativa } from "@/lib/contas-servidor";
-import { ipDe } from "@/lib/conta-servidor";
+import { excedeuLimiteDePedidos, gravarPedido } from "@/lib/pedido-banco";
+import { cashbacksDoCliente, ipDe } from "@/lib/conta-servidor";
+import { situacaoDoCashback } from "@/lib/regra-cashback";
 import { sessaoAtual } from "@/lib/sessao";
+import { EXIGIR_LOGIN } from "@/lib/modo";
 
-const MAX_PEDIDOS_POR_HORA = 10; // por rede
+const hojeBr = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
 
-/** Grava o pedido em loja.pedidos. Sem banco ligado (demonstração) avisa e o checkout guarda só no navegador, como antes. */
+/**
+ * Grava o pedido em loja.pedidos. Sem banco ligado (demonstração) avisa e o checkout guarda só no navegador.
+ * O cashback só vale para quem está logado e com a conta ligada ao cadastro; o servidor limita ao saldo real.
+ */
 export async function POST(req: Request) {
   if (!bancoLigado()) return NextResponse.json({ demo: true });
   let corpo: PedidoRecebido;
@@ -18,46 +23,31 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   }
+  const s = await sessaoAtual();
+  if (EXIGIR_LOGIN && !s) return NextResponse.json({ erro: "Entre ou crie sua conta para fazer o pedido.", precisaLogin: true }, { status: 401 });
+
   const regras = await regrasCashback();
   const v = validarPedido(corpo, produtoPorRef, regras.tetoUsoPct);
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
-  const p = v.pedido;
+  let p = v.pedido;
 
-  const ip = ipDe(req);
-  const chave = `pedido:${hashCurto(ip)}`;
-  if ((await falhasRecentes(chave, 60)) >= MAX_PEDIDOS_POR_HORA) return NextResponse.json({ erro: "Muitos pedidos em pouco tempo. Tente novamente mais tarde." }, { status: 429 });
-  await registrarTentativa(chave, ip, false);
+  if (p.cashbackUsado > 0) {
+    if (!s?.cpfHash) return NextResponse.json({ erro: "Para usar o cashback, entre na sua conta e ligue ao seu cadastro da Seleto.", precisaLogin: true }, { status: 401 });
+    const situacao = situacaoDoCashback(await cashbacksDoCliente(s.cpfHash), p.subtotal, hojeBr(), {
+      compraMinima: regras.compraMinima,
+      tetoPercentualDaCompra: regras.tetoUsoPct,
+      exemplo: regras.exemplo,
+    });
+    p = limitarCashbackAoSaldo(p, situacao.utilizavel);
+    p = { ...p, cashbackTelefone: p.cashbackUsado > 0 ? p.cliente.telefone : null };
+  }
 
-  const s = await sessaoAtual();
-  const cliente = await db().connect();
+  if (await excedeuLimiteDePedidos(ipDe(req))) return NextResponse.json({ erro: "Muitos pedidos em pouco tempo. Tente novamente mais tarde." }, { status: 429 });
   try {
-    await cliente.query("BEGIN");
-    const { rows } = await cliente.query<{ id: string; numero: string }>(
-      `INSERT INTO loja.pedidos
-         (status, cliente_nome, cliente_telefone, cliente_email, entrega_tipo, loja_retirada_id, endereco, pagamento_metodo,
-          subtotal, desconto, frete, total, cashback_usado, cashback_telefone, entrega_servico, entrega_prazo_dias, frete_estimado, conta_id)
-       VALUES ('aguardando_pagamento', $1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, $16)
-       RETURNING id::text, numero::text`,
-      [
-        p.cliente.nome, p.cliente.telefone, p.cliente.email, p.entrega.tipo, p.entrega.lojaId,
-        p.entrega.endereco ? JSON.stringify({ texto: p.entrega.endereco }) : null, p.pagamentoMetodo,
-        p.subtotal, p.frete, p.total, p.cashbackUsado, p.cashbackTelefone, p.entrega.servico, p.entrega.prazoDias, p.entrega.freteEstimado,
-        s?.contaId ?? null,
-      ],
-    );
-    for (const i of p.itens) {
-      await cliente.query(
-        `INSERT INTO loja.pedido_itens (pedido_id, produto_ref, nome, cor, tamanho, quantidade, preco_unit) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [rows[0].id, i.ref, i.nome, i.cor, i.tamanho, i.quantidade, i.preco],
-      );
-    }
-    await cliente.query("COMMIT");
-    return NextResponse.json({ numero: Number(rows[0].numero), subtotal: p.subtotal, frete: p.frete, cashbackUsado: p.cashbackUsado, total: p.total, pagamento: p.pagamentoMetodo });
+    const numero = await gravarPedido(p, s?.contaId ?? null);
+    return NextResponse.json({ numero, subtotal: p.subtotal, frete: p.frete, cashbackUsado: p.cashbackUsado, total: p.total, pagamento: p.pagamentoMetodo });
   } catch (e) {
-    await cliente.query("ROLLBACK").catch(() => {});
     console.error("pedido: falha ao gravar", e instanceof Error ? e.message : e);
     return NextResponse.json({ erro: "Não foi possível registrar o pedido agora. Tente novamente ou chame a loja no WhatsApp." }, { status: 500 });
-  } finally {
-    cliente.release();
   }
 }

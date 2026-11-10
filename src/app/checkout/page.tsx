@@ -5,15 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCarrinho } from "@/lib/carrinho";
 import { dataBr, digitos, reais } from "@/lib/format";
-import { cpfValido, formatarCpf, soDigitos } from "@/lib/cpf";
 import { LOJAS } from "@/lib/lojas";
-import { MODO_REAL } from "@/lib/modo";
+import { EXIGIR_LOGIN } from "@/lib/modo";
 import { lerLojaPreferida } from "@/lib/loja-preferida";
 import { formaDaEntrega } from "@/lib/pagamento";
 import type { PedidoSalvo } from "@/lib/tipos";
 import { situacaoDoCashback } from "@/lib/regra-cashback";
 import { regraDeUsoDe, useRegrasCashback } from "@/lib/use-regras-cashback";
-import type { RespostaConta } from "../api/conta/route";
 import type { RespostaFrete } from "../api/frete/route";
 import { cepValido } from "@/lib/frete";
 
@@ -49,11 +47,10 @@ export default function Checkout() {
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  // Cashback: o cliente confirma celular + 3 primeiros dígitos do CPF; o site mostra o que ele pode usar.
-  const [cpf, setCpf] = useState("");
-  const [consulta, setConsulta] = useState<{ para: string; dados: RespostaConta } | null>(null);
-  const [consultando, setConsultando] = useState(false);
-  const [erroCashback, setErroCashback] = useState("");
+  // Conta: o cashback só vale para quem está logado e com a conta ligada ao cadastro da Seleto (o servidor confere o saldo).
+  type EstadoConta = { logado: false } | { logado: true; ligada: boolean; nome: string };
+  const [conta, setConta] = useState<EstadoConta | null>(null);
+  const [dadosCashback, setDadosCashback] = useState<{ nome: string; cashbacks: { valor: number; liberaEm: string; venceEm: string }[] } | null>(null);
   const [usarCashback, setUsarCashback] = useState(false);
   const regras = useRegrasCashback();
   const regra = useMemo(() => regraDeUsoDe(regras), [regras]);
@@ -62,8 +59,6 @@ export default function Checkout() {
   const desconto = useMemo(() => Math.round(subtotal * forma.descontoPct) / 100, [subtotal, forma]);
 
   const telefoneAtual = digitos(telefone).slice(-11);
-  // A consulta é do CPF digitado: se ele mudar depois, o cashback some e é preciso consultar de novo.
-  const dadosCashback = consulta && consulta.para === soDigitos(cpf) ? consulta.dados : null;
   const situacao = useMemo(
     () => (dadosCashback ? situacaoDoCashback(dadosCashback.cashbacks, subtotal, hojeBr(), regra) : null),
     [dadosCashback, subtotal, regra],
@@ -122,24 +117,32 @@ export default function Checkout() {
     };
   }, [entrega, cepDigitos, chaveItens]);
 
-  async function verificarCashback() {
-    setErroCashback("");
-    if (!cpfValido(cpf)) return setErroCashback("CPF inválido. Confira os 11 números.");
-    setConsultando(true);
-    try {
-      const r = await fetch("/api/conta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cpf }) });
-      const j = await r.json();
-      if (!r.ok) setErroCashback(j.erro ?? "Não foi possível consultar.");
-      else {
-        setConsulta({ para: soDigitos(cpf), dados: j });
-        setUsarCashback(false);
+  // Quem está logado: preenche nome, celular e e-mail do cadastro (sem apagar o que a pessoa já digitou) e carrega o cashback.
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const p = await (await fetch("/api/conta/perfil")).json();
+        if (!vivo) return;
+        if (!p.logado) return setConta({ logado: false });
+        setConta({ logado: true, ligada: Boolean(p.ligada), nome: p.nome ?? "" });
+        if (!p.ligada) return;
+        setNome((v) => v || p.nome || "");
+        setTelefone((v) => v || p.telefone || "");
+        setEmail((v) => v || p.email || "");
+        const d = await fetch("/api/conta/dados");
+        if (d.ok && vivo) {
+          const j = await d.json();
+          setDadosCashback({ nome: j.nome, cashbacks: j.cashbacks ?? [] });
+        }
+      } catch {
+        if (vivo) setConta({ logado: false });
       }
-    } catch {
-      setErroCashback("Sem conexão. Tente novamente.");
-    } finally {
-      setConsultando(false);
-    }
-  }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   if (!pronto) return <p className="text-fraco">Carregando…</p>;
   if (itens.length === 0) {
@@ -147,6 +150,17 @@ export default function Checkout() {
       <div className="rounded-xl border border-borda bg-painel p-10 text-center">
         <p className="font-semibold">Seu carrinho está vazio.</p>
         <Link href="/produtos" className="btn mt-4">Ver produtos</Link>
+      </div>
+    );
+  }
+
+  // Com NEXT_PUBLIC_EXIGIR_LOGIN=1 só finaliza pedido quem tem conta e está logado.
+  if (EXIGIR_LOGIN && conta && !conta.logado) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 rounded-xl border border-borda bg-painel p-8 text-center">
+        <h1 className="titulao text-3xl">Entre para finalizar</h1>
+        <p className="text-sm text-fraco">Para fazer o pedido você precisa ter conta Seleto e estar logado. Leva um minuto, e sua sacola fica guardada.</p>
+        <Link href="/conta?voltar=/checkout" className="btn">Entrar ou criar conta</Link>
       </div>
     );
   }
@@ -291,22 +305,22 @@ export default function Checkout() {
 
         <div className="space-y-6">
         <Secao titulo="3. Cashback (opcional)">
-          {!dadosCashback ? (
-            <>
-              <p className="text-sm text-fraco">
-                Tem cashback Seleto? Digite o seu CPF para ver se você é cliente e quanto pode usar neste pedido.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input className="campo sm:max-w-64" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" />
-                <button type="button" onClick={verificarCashback} disabled={consultando} className="btn-claro">
-                  {consultando ? "Consultando…" : "Verificar meu cashback"}
-                </button>
-              </div>
-              {erroCashback ? <p className="text-sm text-promo">{erroCashback}</p> : null}
-              <p className="text-xs text-fraco">Seu CPF é usado só para a consulta e não fica guardado.{MODO_REAL ? "" : " Teste: 529.982.247-25."}</p>
-            </>
+          {!conta ? (
+            <p className="text-sm text-fraco">Verificando sua conta…</p>
+          ) : !conta.logado ? (
+            <div className="space-y-3">
+              <p className="text-sm text-fraco">O cashback é só para quem tem conta Seleto. Entre ou crie sua conta e ligue ao seu cadastro das lojas para ver e usar seu saldo.</p>
+              <Link href="/conta?voltar=/checkout" className="btn-claro">Entrar ou criar conta</Link>
+            </div>
+          ) : !conta.ligada ? (
+            <div className="space-y-3">
+              <p className="text-sm text-fraco">Sua conta ainda não está ligada ao seu cadastro da Seleto. Ligue com seu nome completo, data de nascimento, CPF e celular para ver e usar seu cashback.</p>
+              <Link href="/conta?voltar=/checkout" className="btn-claro">Ligar ao meu cadastro</Link>
+            </div>
+          ) : !dadosCashback ? (
+            <p className="text-sm text-fraco">Carregando seu cashback…</p>
           ) : situacao && situacao.disponivel + situacao.aLiberar === 0 ? (
-            <p className="text-sm text-fraco">Olá, {dadosCashback.nome}! Não encontramos cashback ativo neste celular.</p>
+            <p className="text-sm text-fraco">Olá, {dadosCashback.nome}! Você não tem cashback ativo no momento.</p>
           ) : situacao ? (
             <div className="space-y-3">
               <p className="text-sm">Olá, <strong>{dadosCashback.nome}</strong>! Seu cashback:</p>
@@ -340,9 +354,6 @@ export default function Checkout() {
                   </span>
                 </label>
               )}
-              <button type="button" onClick={() => { setConsulta(null); setCpf(""); setUsarCashback(false); }} className="text-xs text-fraco underline">
-                Consultar outro CPF
-              </button>
             </div>
           ) : null}
         </Secao>

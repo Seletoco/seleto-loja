@@ -101,3 +101,14 @@ export function validarPedido(
     },
   };
 }
+
+/**
+ * Cashback do pedido conferido com o SALDO REAL de quem está logado: nunca passa do que a regra libera para esta compra.
+ * `utilizavel` vem de `situacaoDoCashback` (saldo liberado, teto e compra mínima). Função pura.
+ */
+export function limitarCashbackAoSaldo(p: PedidoValidado, utilizavel: number): PedidoValidado {
+  const permitido = Math.max(0, Math.floor(utilizavel * 100) / 100);
+  const usado = Math.min(p.cashbackUsado, permitido);
+  if (usado === p.cashbackUsado) return p;
+  return { ...p, cashbackUsado: usado, total: arred(p.subtotal + p.frete - usado) };
+}
