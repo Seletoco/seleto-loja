@@ -10,7 +10,7 @@ import { reais } from "@/lib/format";
 
 const q = (v: string) => encodeURIComponent(v);
 
-export function Cabecalho({ menu, teste, blackFriday = false }: { menu: DadosMenu; teste: boolean; blackFriday?: boolean }) {
+export function Cabecalho({ menu, logos = {}, teste, blackFriday = false }: { menu: DadosMenu; logos?: Record<string, string>; teste: boolean; blackFriday?: boolean }) {
   const { quantidade, pronto, abrir } = useCarrinho();
   const [mobile, setMobile] = useState(false);
   const [busca, setBusca] = useState(false);
@@ -46,11 +46,17 @@ export function Cabecalho({ menu, teste, blackFriday = false }: { menu: DadosMen
       <Colunas titulo="Novidades" itens={[["Todos os lançamentos", "/produtos?ordem=novo"], ["Tênis novos", `/produtos?categoria=${k("Tênis")}&ordem=novo`], ...menu.roupas.map((c): string[] => [`Novidades em ${c}`, `/produtos?categoria=${k(c)}&ordem=novo`])]} menu={menu} produtos={menu.novos} />
     ),
     tenis: (
-      <Colunas titulo="Tênis" itens={[["Todos os tênis", `/produtos?categoria=${k("Tênis")}`], ...menu.marcas.map((m): string[] => [m, `/produtos?categoria=${k("Tênis")}&marca=${k(m)}`])]} menu={menu} duas />
+      <Colunas titulo="Tênis" itens={[["Todos os tênis", `/produtos?categoria=${k("Tênis")}`]]} menu={menu} produtos={menu.tenis} marcasLogo={{ nomes: menu.marcasTenis, logos, href: (m) => `/produtos?categoria=${k("Tênis")}&marca=${k(m)}` }} />
+    ),
+    ...Object.fromEntries(
+      menu.generos.map((g) => {
+        const nome = g.genero === "feminino" ? "Feminino" : "Masculino";
+        return [g.genero, <Colunas key={g.genero} titulo={nome} itens={[[`Todo o ${nome.toLowerCase()}`, `/produtos?genero=${g.genero}`], ...g.categorias.map((c): string[] => [c, `/produtos?genero=${g.genero}&categoria=${k(c)}`])]} menu={menu} produtos={g.destaques} />];
+      }),
     ),
     roupas: <Colunas titulo="Roupas" itens={menu.roupas.map((c) => [c, `/produtos?categoria=${k(c)}`])} menu={menu} />,
     acessorios: <Colunas titulo="Acessórios" itens={menu.acessorios.map((c) => [c, `/produtos?categoria=${k(c)}`])} menu={menu} />,
-    marcas: <Colunas titulo="Marcas" itens={menu.marcas.map((m) => [m, `/produtos?marca=${k(m)}`])} menu={menu} duas />,
+    marcas: <Colunas titulo="Marcas" itens={[["Todas as marcas", "/produtos"]]} menu={menu} marcasLogo={{ nomes: menu.marcas, logos, href: (m) => `/produtos?marca=${k(m)}` }} />,
     ofertas: (
       <Colunas titulo="Ofertas" itens={[["Todas as ofertas", "/produtos?promo=1&ordem=promo"], ["Tênis em oferta", `/produtos?promo=1&categoria=${k("Tênis")}&ordem=promo`], ...menu.roupas.map((c): string[] => [`${c} em oferta`, `/produtos?promo=1&categoria=${k(c)}&ordem=promo`])]} menu={menu} />
     ),
@@ -73,6 +79,9 @@ export function Cabecalho({ menu, teste, blackFriday = false }: { menu: DadosMen
 
           <nav className="ml-6 hidden h-full items-stretch gap-1 lg:flex" aria-label="Principal" onMouseLeave={() => fecharMenu()}>
             <Item id="novidades" href="/produtos?ordem=novo" aberto={aberto} abrir={abrirMenu}>Novidades</Item>
+            {menu.generos.map((g) => (
+              <Item key={g.genero} id={g.genero} href={`/produtos?genero=${g.genero}`} aberto={aberto} abrir={abrirMenu}>{g.genero === "feminino" ? "Feminino" : "Masculino"}</Item>
+            ))}
             <Item id="tenis" href={`/produtos?categoria=${q("Tênis")}`} aberto={aberto} abrir={abrirMenu}>Tênis</Item>
             <Item id="roupas" href="/produtos" aberto={aberto} abrir={abrirMenu}>Roupas</Item>
             <Item id="acessorios" href="/produtos" aberto={aberto} abrir={abrirMenu}>Acessórios</Item>
@@ -134,18 +143,34 @@ function Item({ id, href, children, promo, aberto, abrir }: { id: string; href: 
   );
 }
 
-function Colunas({ titulo, itens, menu, duas, produtos }: { titulo: string; itens: string[][]; menu: DadosMenu; duas?: boolean; produtos?: DadosMenu["destaques"] }) {
+function Colunas({ titulo, itens, menu, duas, produtos, marcasLogo }: { titulo: string; itens: string[][]; menu: DadosMenu; duas?: boolean; produtos?: DadosMenu["destaques"]; marcasLogo?: { nomes: string[]; logos: Record<string, string>; href: (m: string) => string } }) {
   return (
     <div className="mx-auto grid max-w-[1500px] grid-cols-[1fr_auto] gap-10 px-8 py-8">
       <div>
         <p className="titulao mb-4 text-2xl">{titulo}</p>
+        {marcasLogo ? (
+          <ul className="mb-4 grid max-w-3xl grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            {marcasLogo.nomes.map((m) => (
+              <li key={m}>
+                <Link href={marcasLogo.href(m)} title={m} className="flex h-14 items-center justify-center border border-borda bg-white px-2 transition hover:border-texto hover:bg-tenue">
+                  {marcasLogo.logos[m] ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- logos estáticas em public/marcas
+                    <img src={marcasLogo.logos[m]} alt={m} className="max-h-8 max-w-full object-contain" />
+                  ) : (
+                    <span className="line-clamp-2 text-center text-[11px] font-black uppercase leading-tight tracking-wide">{m}</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <ul className={`gap-x-12 gap-y-2 text-sm ${duas ? "grid grid-cols-3" : "space-y-2"}`}>
           {itens.map(([rotulo, href]) => (
             <li key={`${rotulo}${href}`}>
               <Link href={href} className="hover:underline">{rotulo}</Link>
             </li>
           ))}
-          <li className="pt-2"><Link href={itens[0]?.[1] ?? "/produtos"} className="font-bold underline">Ver tudo</Link></li>
+          {marcasLogo ? null : <li className="pt-2"><Link href={itens[0]?.[1] ?? "/produtos"} className="font-bold underline">Ver tudo</Link></li>}
         </ul>
       </div>
       <div className="hidden gap-4 xl:flex">
@@ -175,6 +200,9 @@ function MenuMobile({ menu, fechar }: { menu: DadosMenu; fechar: () => void }) {
       </div>
       <div className="px-4">
         <LinkMobile fechar={fechar} href="/produtos?ordem=novo">Novidades</LinkMobile>
+        {menu.generos.map((g) => (
+          <LinkMobile key={g.genero} fechar={fechar} href={`/produtos?genero=${g.genero}`}>{g.genero === "feminino" ? "Feminino" : "Masculino"}</LinkMobile>
+        ))}
         <LinkMobile fechar={fechar} href={`/produtos?categoria=${q("Tênis")}`}>Tênis</LinkMobile>
         {[...menu.roupas, ...menu.acessorios].map((c) => (
           <LinkMobile key={c} fechar={fechar} href={`/produtos?categoria=${q(c)}`}>{c}</LinkMobile>

@@ -1,26 +1,6 @@
 import Link from "next/link";
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
 import { marcas } from "@/lib/catalogo";
-
-/** "New Balance" -> "newbalance"; "HIGH Company" -> "highcompany". É o nome do arquivo da logo em public/marcas. */
-const slug = (nome: string) => nome.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
-/** Logos disponíveis: qualquer arquivo `public/marcas/<slug>.(svg|png|webp|jpg)` aparece sozinho. */
-function logosDisponiveis(): Map<string, string> {
-  const m = new Map<string, string>();
-  try {
-    const pasta = join(process.cwd(), "public", "marcas");
-    if (!existsSync(pasta)) return m;
-    for (const arquivo of readdirSync(pasta)) {
-      const mt = /^(.+)\.(svg|png|webp|jpe?g)$/i.exec(arquivo);
-      if (mt) m.set(mt[1].toLowerCase(), `/marcas/${arquivo}`);
-    }
-  } catch {
-    /* sem logos: todas as marcas caem no nome em letras grandes */
-  }
-  return m;
-}
+import { logosDisponiveis, slugMarca as slug } from "@/lib/logos";
 
 /**
  * "Compre por marca": um botão por marca. Com a logo, quando o arquivo existe; senão, o nome em letras
