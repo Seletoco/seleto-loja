@@ -72,6 +72,13 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
               </Opcao>
             ))}
           </Grupo>
+          <Grupo titulo="Gênero" aberto={Boolean(q.genero)}>
+            {(["masculino", "feminino"] as const).map((g) => (
+              <Opcao key={g} ativo={q.genero === g} href={href({ genero: q.genero === g ? undefined : g })}>
+                {g === "feminino" ? "Feminino" : "Masculino"}
+              </Opcao>
+            ))}
+          </Grupo>
           <Grupo titulo="Marca" aberto={Boolean(q.marca)}>
             {marcas().slice(0, 16).map((m) => (
               <Opcao key={m.valor} ativo={q.marca === m.valor} href={href({ marca: q.marca === m.valor ? undefined : m.valor })}>
