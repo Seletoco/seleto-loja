@@ -17,3 +17,18 @@ export function mesmoPrimeiroNome(informado: string, cadastro: string): boolean 
   const [curto, longo] = a.length <= b.length ? [a, b] : [b, a];
   return curto.length >= 3 && longo.startsWith(curto);
 }
+
+/**
+ * Nome completo: o primeiro nome confere (como em `mesmoPrimeiroNome`) E o último sobrenome é igual.
+ * Nomes do meio não contam ("Maria Souza" confere com "MARIA APARECIDA SOUZA"). Exige 2+ palavras no que a pessoa digitou.
+ */
+export function mesmoNomeCompleto(informado: string, cadastro: string): boolean {
+  const a = limpar(informado).split(/\s+/).filter(Boolean);
+  const b = limpar(cadastro).split(/\s+/).filter(Boolean);
+  if (a.length < 2 || b.length < 2) return false;
+  return mesmoPrimeiroNome(a[0], b[0]) && a[a.length - 1] === b[b.length - 1];
+}
+
+/** "MARIA APARECIDA SOUZA" -> "Maria Aparecida Souza" (para mostrar à própria pessoa). */
+export const nomeBonito = (s: string) =>
+  s.toLowerCase().replace(/(^|\s)(\p{L})/gu, (_, e: string, c: string) => e + c.toUpperCase()).replace(/\s+/g, " ").trim();

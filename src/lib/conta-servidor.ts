@@ -37,6 +37,18 @@ export function dadosDemo(): DadosConta {
   };
 }
 
+/** Só os saldos de cashback (para o servidor conferir o uso no pedido). */
+export async function cashbacksDoCliente(cpfHash: string): Promise<{ valor: number; liberaEm: string; venceEm: string }[]> {
+  if (!bancoLigado()) return dadosDemo().cashbacks;
+  const { rows } = await db().query<{ valor: string; libera: string; vence: string }>(
+    `SELECT valor, to_char(vale_a_partir_de, 'YYYY-MM-DD') AS libera, to_char(valido_ate, 'YYYY-MM-DD') AS vence
+       FROM loja.v_cashback_por_cpf WHERE cpf_hash = $1 AND valido_ate >= (now() AT TIME ZONE 'America/Sao_Paulo')::date
+      ORDER BY valido_ate, vale_a_partir_de`,
+    [cpfHash],
+  );
+  return rows.map((r) => ({ valor: Number(r.valor), liberaEm: r.libera, venceEm: r.vence }));
+}
+
 export async function dadosDoCliente(cpfHash: string, verificado: boolean): Promise<DadosConta | null> {
   if (!bancoLigado()) return dadosDemo();
   const banco = db();
