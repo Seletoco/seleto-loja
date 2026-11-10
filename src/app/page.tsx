@@ -78,7 +78,7 @@ export default async function Home() {
         {[
           { t: "Entrega para todo o Brasil", d: "Frete e prazo no pedido", href: "", icone: "M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" },
           { t: "Retire grátis na loja", d: "Sem fila, em 4 lojas", href: "/produtos", icone: "M4 9l1-5h14l1 5M4 9v11h16V9M4 9h16M9 20v-6h6v6" },
-          { t: "Atendimento no WhatsApp", d: "Tire dúvidas antes de comprar", href: linkWhatsappGeral("Olá! Vim pelo site da Seleto.") ?? "", icone: "M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z" },
+          { t: "Atendimento no WhatsApp", d: "Tire dúvidas antes de comprar", href: linkWhatsappGeral("Olá! Vim pelo site da Seleto e gostaria de atendimento.") ?? "", icone: "M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z" },
           { t: "Cashback Seleto", d: "Veja e use o seu saldo", href: "/conta", icone: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
         ].map(({ t, d, href, icone }) => {
           const miolo = (
