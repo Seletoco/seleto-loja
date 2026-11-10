@@ -12,20 +12,24 @@ export default function Privacidade() {
   const cnpj = process.env.NEXT_PUBLIC_EMPRESA_CNPJ;
   const contato = process.env.NEXT_PUBLIC_CONTATO_PRIVACIDADE;
   return (
-    <article className="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed">
+    <article className="mx-auto grid max-w-7xl gap-8 text-sm leading-relaxed lg:grid-cols-[300px_minmax(0,1fr)]">
+      <header className="space-y-4 lg:sticky lg:top-28 lg:self-start">
       <h1 className="titulao text-4xl">Política de privacidade</h1>
       {MODO_REAL ? null : <p className="bg-destaque px-3 py-2 text-xs font-bold uppercase tracking-wide">Rascunho para revisão jurídica</p>}
+      </header>
 
-      <section className="space-y-2">
+      <div className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
+
+      <section className="space-y-2 border border-borda bg-painel p-5 md:col-span-2">
         <h2 className="text-lg font-black">Quem cuida dos seus dados</h2>
         <p>
-          {razao ? <>{razao}{cnpj ? <> — CNPJ {cnpj}</> : null}, </> : "A Seleto "}
+          {razao ? <>{razao}{cnpj ? <> — CNPJ {cnpj}</> : null} é a </> : "A Seleto é a "}
           responsável pelas lojas Seleto e por esta loja online.
           {contato ? <> Para falar sobre seus dados: <b>{contato}</b>.</> : " Para falar sobre seus dados, procure uma das nossas lojas."}
         </p>
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-2 border border-borda bg-painel p-5 md:col-span-2">
         <h2 className="text-lg font-black">Quais dados usamos e para quê</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li><b>Pedido:</b> nome, celular, e-mail (opcional) e, se for entrega em casa, o endereço. Usamos para separar, entregar e combinar o pagamento do seu pedido.</li>
@@ -37,7 +41,7 @@ export default function Privacidade() {
         </ul>
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-2 border border-borda bg-painel p-5">
         <h2 className="text-lg font-black">Com quem compartilhamos</h2>
         <p>
           Não vendemos seus dados. Para entregas pelos Correios, o endereço e o CEP são usados na cotação e no envio. Usamos serviços de hospedagem e banco de dados
@@ -45,7 +49,7 @@ export default function Privacidade() {
         </p>
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-2 border border-borda bg-painel p-5">
         <h2 className="text-lg font-black">Seus direitos (LGPD)</h2>
         <p>
           Você pode pedir confirmação de que tratamos seus dados, acesso, correção, anonimização ou exclusão, e informações sobre compartilhamento
@@ -53,10 +57,11 @@ export default function Privacidade() {
         </p>
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-2 border border-borda bg-painel p-5">
         <h2 className="text-lg font-black">Por quanto tempo guardamos</h2>
         <p>Guardamos os pedidos pelo tempo necessário para atender você e cumprir obrigações legais e fiscais. Os demais dados, enquanto sua conta existir ou até você pedir a exclusão.</p>
       </section>
+      </div>
     </article>
   );
 }

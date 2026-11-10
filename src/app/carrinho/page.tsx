@@ -19,7 +19,7 @@ export default function Carrinho() {
     );
   }
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <section className="space-y-3">
         <h1 className="text-xl font-bold">Carrinho</h1>
         {itens.map((i) => (
@@ -46,7 +46,7 @@ export default function Carrinho() {
           </article>
         ))}
       </section>
-      <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4">
+      <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4 lg:sticky lg:top-28">
         <div className="flex justify-between text-sm"><span>Subtotal</span><strong>{reais(subtotal)}</strong></div>
         {(() => {
           const f = faixaCashback(subtotal, regras.ganhoMinPct, regras.ganhoMaxPct);

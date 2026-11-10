@@ -47,7 +47,8 @@ export function PainelPedidos({ doBanco }: { doBanco?: PedidoSalvo[] }) {
       {pedidos.length === 0 ? (
         <p className="rounded-lg border border-borda bg-painel p-6 text-center text-fraco">Nenhum pedido ainda.</p>
       ) : (
-        pedidos.map((p) => (
+        <div className="grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        {pedidos.map((p) => (
           <article key={p.numero} className="space-y-2 rounded-lg border border-borda bg-painel p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <strong>Pedido {p.numero}</strong>
@@ -69,7 +70,8 @@ export function PainelPedidos({ doBanco }: { doBanco?: PedidoSalvo[] }) {
             {p.cashback ? <p className="text-promo">Cashback a confirmar e dar baixa: {reais(p.cashback.usado)} ({telefoneBonito(p.cashback.telefone)})</p> : null}
             <p className="font-bold">{reais(p.total)}</p>
           </article>
-        ))
+        ))}
+        </div>
       )}
     </section>
   );

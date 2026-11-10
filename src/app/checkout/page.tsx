@@ -223,10 +223,12 @@ export default function Checkout() {
   }
 
   return (
-    <form onSubmit={finalizar} className="grid gap-6 lg:grid-cols-[1fr_340px]">
+    <form onSubmit={finalizar} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-6">
         <h1 className="text-xl font-bold">Finalizar pedido</h1>
 
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+        <div className="space-y-6">
         <Secao titulo="1. Seus dados">
           <input className="campo" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" />
           <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" />
@@ -285,7 +287,9 @@ export default function Checkout() {
             </div>
           ) : null}
         </Secao>
+        </div>
 
+        <div className="space-y-6">
         <Secao titulo="3. Cashback (opcional)">
           {!dadosCashback ? (
             <>
@@ -347,9 +351,11 @@ export default function Checkout() {
           <Escolha ativo onClick={() => {}} titulo={forma.rotulo} texto={forma.descricao} />
           <p className="text-xs text-fraco">Nenhuma cobrança é feita pelo site.</p>
         </Secao>
+        </div>
+        </div>
       </div>
 
-      <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4">
+      <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4 lg:sticky lg:top-28">
         <h2 className="font-bold">Resumo</h2>
         <ul className="space-y-1 text-sm">
           {itens.map((i) => (
