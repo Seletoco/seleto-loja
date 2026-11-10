@@ -5,7 +5,7 @@ import type { RegrasCashback } from "./regras-servidor";
 import type { RegraDeUso } from "./regra-cashback";
 
 // Só tipos vêm do módulo do servidor (apagados no build); o padrão é repetido aqui para não puxar o `pg` para o navegador.
-const PADRAO: RegrasCashback = { ganhoMinPct: 10, ganhoMaxPct: 15, diasParaLiberar: 7, validadeDias: 30, tetoUsoPct: 20, compraMinima: 0, exemplo: true };
+const PADRAO: RegrasCashback = { ganhoMinPct: 10, ganhoMaxPct: 15, diasParaLiberar: 7, validadeDias: 30, tetoUsoPct: 20, compraMinima: 0, geraAgora: true, exemplo: true };
 
 /** Regras do cashback para telas de navegador: começa no padrão e troca pelas do sistema assim que a API responde. */
 export function useRegrasCashback(): RegrasCashback {

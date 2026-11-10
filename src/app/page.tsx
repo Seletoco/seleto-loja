@@ -60,7 +60,7 @@ export default function Home() {
           ["Entrega para todo o Brasil", "Frete e prazo no pedido"],
           ["Retire grátis na loja", "Sem fila, em 4 lojas", "/produtos"],
           ["Atendimento no WhatsApp", "Tire dúvidas antes de comprar", ""],
-          ["Cashback Seleto", "Ganhe e use nas próximas compras", "/conta"],
+          ["Cashback Seleto", "Veja e use o seu saldo", "/conta"],
         ].map(([t, d, href]) => {
           const miolo = (
             <>
@@ -109,8 +109,8 @@ export default function Home() {
               <span className="titulao absolute -right-4 -top-6 text-[9rem] text-white/10">R$</span>
               <p className="text-xs font-black uppercase tracking-[0.25em] text-destaque">Cashback Seleto</p>
               <h3 className="titulao mt-2 text-4xl sm:text-5xl">Seu dinheiro<br />de volta</h3>
-              <p className="mt-3 max-w-sm text-sm text-white/75">Consulte quanto você tem, quando libera e quando vence. É só o celular e 3 dígitos do CPF.</p>
-              <span className="mt-5 inline-block w-fit bg-white px-6 py-3 text-sm font-black uppercase text-texto transition group-hover:bg-destaque">Consultar meu saldo →</span>
+              <p className="mt-3 max-w-sm text-sm text-white/75">Entre na sua conta e veja quanto você tem, quando libera e quando vence.</p>
+              <span className="mt-5 inline-block w-fit bg-white px-6 py-3 text-sm font-black uppercase text-texto transition group-hover:bg-destaque">Entrar na minha conta →</span>
             </Link>
             <Link href="/produtos?ordem=novo" className="group relative flex min-h-72 flex-col justify-end overflow-hidden bg-destaque p-8">
               <span className="titulao absolute -right-4 -top-6 text-[9rem] text-texto/10">NEW</span>

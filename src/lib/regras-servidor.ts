@@ -15,11 +15,13 @@ export interface RegrasCashback {
   tetoUsoPct: number;
   /** O sistema não define compra mínima para usar: 0 = sem mínimo. */
   compraMinima: number;
+  /** O cashback AUTOMÁTICO por venda está ligado no sistema? Falso = hoje ninguém está ganhando cashback novo. */
+  geraAgora: boolean;
   /** true = valores de reserva (sem banco), não lidos do sistema agora. */
   exemplo: boolean;
 }
 
-export const REGRAS_PADRAO: RegrasCashback = { ganhoMinPct: 10, ganhoMaxPct: 15, diasParaLiberar: 7, validadeDias: 30, tetoUsoPct: 20, compraMinima: 0, exemplo: true };
+export const REGRAS_PADRAO: RegrasCashback = { ganhoMinPct: 10, ganhoMaxPct: 15, diasParaLiberar: 7, validadeDias: 30, tetoUsoPct: 20, compraMinima: 0, geraAgora: true, exemplo: true };
 
 let cache: { em: number; regras: RegrasCashback } | null = null;
 const VALE_MS = 5 * 60_000;
@@ -30,21 +32,24 @@ export async function regrasCashback(): Promise<RegrasCashback> {
   try {
     const banco = db();
     const [{ rows: r }, { rows: f }] = await Promise.all([
-      banco.query<{ percentual_automatico: string; dias_para_liberar: number; validade_dias: number; desconto_total_max_pct: string | null }>(
-        `SELECT percentual_automatico, dias_para_liberar, validade_dias, desconto_total_max_pct FROM loja.v_regras_cashback LIMIT 1`,
+      // `to_jsonb(r)` traz as colunas que a view tiver: sem a coluna `auto_ativo` (migration 010 ainda não aplicada) o site segue como antes.
+      banco.query<{ j: { percentual_automatico: string; dias_para_liberar: number; validade_dias: number; desconto_total_max_pct: string | null; auto_ativo?: boolean } }>(
+        `SELECT to_jsonb(r) AS j FROM loja.v_regras_cashback r LIMIT 1`,
       ),
       banco.query<{ percentual: string }>(`SELECT percentual FROM loja.v_cashback_formas`),
     ]);
     if (!r[0]) return REGRAS_PADRAO;
-    const pcts = [Number(r[0].percentual_automatico), ...f.map((x) => Number(x.percentual))].filter((n) => Number.isFinite(n) && n > 0);
-    const teto = Number(r[0].desconto_total_max_pct);
+    const v = r[0].j;
+    const pcts = [Number(v.percentual_automatico), ...f.map((x) => Number(x.percentual))].filter((n) => Number.isFinite(n) && n > 0);
+    const teto = Number(v.desconto_total_max_pct);
     const regras: RegrasCashback = {
       ganhoMinPct: pcts.length ? Math.min(...pcts) : REGRAS_PADRAO.ganhoMinPct,
       ganhoMaxPct: pcts.length ? Math.max(...pcts) : REGRAS_PADRAO.ganhoMaxPct,
-      diasParaLiberar: r[0].dias_para_liberar ?? REGRAS_PADRAO.diasParaLiberar,
-      validadeDias: r[0].validade_dias ?? REGRAS_PADRAO.validadeDias,
+      diasParaLiberar: v.dias_para_liberar ?? REGRAS_PADRAO.diasParaLiberar,
+      validadeDias: v.validade_dias ?? REGRAS_PADRAO.validadeDias,
       tetoUsoPct: Number.isFinite(teto) && teto > 0 ? teto : REGRAS_PADRAO.tetoUsoPct,
       compraMinima: 0,
+      geraAgora: v.auto_ativo !== false,
       exemplo: false,
     };
     cache = { em: Date.now(), regras };

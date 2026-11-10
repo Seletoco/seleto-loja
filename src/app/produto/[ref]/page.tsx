@@ -50,7 +50,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ ref: s
 
           <AdicionarAoCarrinho p={p} />
 
-          <BlocoVantagensProduto nome={p.nome} faixa={faixaCashback(p.preco, regras.ganhoMinPct, regras.ganhoMaxPct)} minPct={regras.ganhoMinPct} maxPct={regras.ganhoMaxPct} />
+          <BlocoVantagensProduto nome={p.nome} faixa={faixaCashback(p.preco, regras.ganhoMinPct, regras.ganhoMaxPct)} minPct={regras.ganhoMinPct} maxPct={regras.ganhoMaxPct} geraAgora={regras.geraAgora} />
 
           <div className="divide-y divide-borda border-y border-borda text-sm">
             <Info titulo="Entrega para todo o Brasil" aberto>
