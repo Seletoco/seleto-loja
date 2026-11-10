@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cpfValido, soDigitos } from "@/lib/cpf";
+import { mesmoPrimeiroNome } from "@/lib/nome";
 import { hashCpf, ipDe } from "@/lib/conta-servidor";
 import { falhasRecentes, hashCurto, registrarTentativa } from "@/lib/contas-servidor";
 import { COOKIE, criarToken, opcoesCookie, sessaoAtual } from "@/lib/sessao";
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   const s = await sessaoAtual();
   if (!s?.contaId) return NextResponse.json({ erro: "Entre na sua conta primeiro." }, { status: 401 });
   if (s.cpfHash) return NextResponse.json({ erro: "Sua conta já está ligada a um cadastro." }, { status: 409 });
-  let c: { cpf?: unknown; telefone?: unknown };
+  let c: { cpf?: unknown; telefone?: unknown; nome?: unknown };
   try {
     c = await req.json();
   } catch {
@@ -26,6 +27,11 @@ export async function POST(req: Request) {
   const tel = String(c.telefone ?? "").replace(/\D/g, "");
   if (!cpfValido(cpf)) return NextResponse.json({ erro: "CPF inválido. Confira os 11 números." }, { status: 400 });
   if (tel.length < 10 || tel.length > 13) return NextResponse.json({ erro: "Informe o celular com DDD." }, { status: 400 });
+
+  // Nome que a pessoa informou (da tela) ou o do cadastro da conta: precisa existir para conferir.
+  const { rows: contaRows } = await db().query<{ nome: string | null }>(`SELECT nome FROM loja.contas WHERE id = $1`, [s.contaId]);
+  const nomeInformado = String(c.nome ?? "").trim().slice(0, 80) || contaRows[0]?.nome || "";
+  if (nomeInformado.length < 2) return NextResponse.json({ erro: "Informe seu nome, como está no seu cadastro da Seleto." }, { status: 400 });
 
   const ip = ipDe(req);
   const chave = `vinc:${hashCurto(s.contaId)}`;
@@ -42,9 +48,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "Não encontramos um cadastro com esse CPF e celular. Confira os dados ou fale com a loja." }, { status: 404 });
   }
 
+  // CPF e celular existem, mas o nome não é o dono do cadastro: recusa, sem revelar o nome do cadastro.
+  if (!mesmoPrimeiroNome(nomeInformado, rows[0].primeiro_nome)) {
+    await registrarTentativa(chave, ip, false);
+    return NextResponse.json({ erro: "O nome informado não confere com o cadastro desse CPF e celular. Confira o nome, o CPF e o celular, ou fale com a loja." }, { status: 403 });
+  }
+
   try {
     await db().query(
-      `UPDATE loja.contas SET cpf_hash = $1, telefone_final = $2, vinculado_em = now(), nome = COALESCE(nome, $3) WHERE id = $4 AND cpf_hash IS NULL`,
+      `UPDATE loja.contas SET cpf_hash = $1, telefone_final = $2, vinculado_em = now(), nome = $3 WHERE id = $4 AND cpf_hash IS NULL`,
       [h, tel.slice(-4), rows[0].primeiro_nome, s.contaId],
     );
   } catch (e) {

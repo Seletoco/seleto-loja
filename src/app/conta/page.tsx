@@ -137,7 +137,7 @@ function LoginEmail({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
       <p className="text-sm text-fraco">
         {criando ? "Depois de criar, você liga a conta ao seu cadastro da Seleto com CPF e celular." : "Use o e-mail e a senha que você cadastrou."}
       </p>
-      {criando ? <input className="campo" placeholder="Seu nome" maxLength={60} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="given-name" /> : null}
+      {criando ? <input className="campo" placeholder="Seu nome (como está no cadastro da Seleto)" maxLength={60} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="given-name" required /> : null}
       <input className="campo" type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
       <input className="campo" type="password" placeholder={criando ? "Crie uma senha (mínimo 8 caracteres)" : "Senha"} value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete={criando ? "new-password" : "current-password"} required />
       {erro ? <p className="text-sm text-promo">{erro}</p> : null}
@@ -151,6 +151,7 @@ function LoginEmail({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
 
 /** Passo 2 da conta por e-mail: liga ao cadastro da Seleto conferindo CPF + celular. */
 function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: () => Promise<boolean>; sair: () => void }) {
+  const [nome, setNome] = useState(pendente.nome ?? "");
   const [cpf, setCpf] = useState("");
   const [telefone, setTelefone] = useState("");
   const [erro, setErro] = useState("");
@@ -162,7 +163,7 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
     if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
     setCarregando(true);
     try {
-      const r = await post("/api/conta/vincular", { cpf, telefone });
+      const r = await post("/api/conta/vincular", { nome, cpf, telefone });
       if (!r.ok) return setErro((await r.json().catch(() => ({}))).erro ?? "Não foi possível ligar a conta.");
       if (!(await aoLigar())) setErro("Ligamos, mas não foi possível carregar seus dados. Atualize a página.");
     } catch {
@@ -180,9 +181,10 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
       <p className="text-sm text-fraco">
         Sua conta {pendente.email ? <b className="text-texto">{pendente.email}</b> : null} foi criada. Agora ligue ao seu cadastro da Seleto para ver seu cashback e seu nível: informe o CPF e o celular que você usa nas nossas lojas.
       </p>
+      <input className="campo" placeholder="Seu nome, como está no cadastro" maxLength={80} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="given-name" required />
       <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
       <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" required />
-      {erro ? <p className="text-sm text-promo">{erro}</p> : null}
+      {erro ? <p className="text-sm text-promo" role="alert">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Conferindo…" : "Ligar ao meu cadastro"}</button>
       <p className="text-xs text-fraco">Seu CPF é usado só para conferir o cadastro e não fica guardado. Nunca foi cliente nas lojas? Sua conta continua valendo e o cashback aparece depois da primeira compra.</p>
       <button type="button" onClick={sair} className="w-full text-center text-xs font-bold underline underline-offset-4">Sair</button>
