@@ -7,7 +7,7 @@ import { Rodape } from "@/components/Rodape";
 import { Sacola } from "@/components/Sacola";
 import { PopupEntrada } from "@/components/PopupEntrada";
 import { Miolo } from "@/components/Miolo";
-import { dadosMenu } from "@/lib/catalogo";
+import { dadosMenu, garantirCatalogo } from "@/lib/catalogo";
 import { MODO_REAL, blackFridayAtiva } from "@/lib/modo";
 
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -18,7 +18,11 @@ export const metadata: Metadata = {
   robots: MODO_REAL ? { index: true, follow: true } : { index: false, follow: false }, // teste: fora do Google
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// O catálogo vem do banco e muda com o estoque: nada de página fixada no deploy.
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await garantirCatalogo();
   return (
     <html lang="pt-BR" className={`${geist.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">

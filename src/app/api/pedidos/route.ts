@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bancoLigado } from "@/lib/db";
-import { produtoPorRef } from "@/lib/catalogo";
+import { garantirCatalogo, produtoPorRef } from "@/lib/catalogo";
 import { limitarCashbackAoSaldo, validarPedido, type PedidoRecebido } from "@/lib/pedido-servidor";
 import { regrasCashback } from "@/lib/regras-servidor";
 import { excedeuLimiteDePedidos, gravarPedido } from "@/lib/pedido-banco";
@@ -26,6 +26,7 @@ export async function POST(req: Request) {
   const s = await sessaoAtual();
   if (EXIGIR_LOGIN && !s) return NextResponse.json({ erro: "Entre ou crie sua conta para fazer o pedido.", precisaLogin: true }, { status: 401 });
 
+  await garantirCatalogo();
   const regras = await regrasCashback();
   const v = validarPedido(corpo, produtoPorRef, regras.tetoUsoPct);
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });

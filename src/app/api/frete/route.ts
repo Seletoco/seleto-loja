@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { produtoPorRef } from "@/lib/catalogo";
+import { garantirCatalogo, produtoPorRef } from "@/lib/catalogo";
 import { cepDeOrigem, correiosConfigurado, cotarNosCorreios } from "@/lib/correios";
 import { cepValido, embalagemDoPedido, estimativaDeExemplo, ufDoCep, type OpcaoFrete } from "@/lib/frete";
 
@@ -34,6 +34,7 @@ export async function POST(req: Request) {
   if (recentes.length >= LIMITE_POR_HORA) return NextResponse.json({ erro: "Muitas consultas de frete. Tente mais tarde." }, { status: 429 });
   memoria.set(ip, [...recentes, agora]);
 
+  await garantirCatalogo();
   const emb = embalagemDoPedido(
     itensIn.map((i) => ({ categoria: produtoPorRef(String(i.ref ?? ""))?.categoria ?? "", quantidade: Math.min(20, Math.max(1, Number(i.quantidade) || 1)) })),
   );

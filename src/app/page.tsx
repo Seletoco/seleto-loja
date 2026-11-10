@@ -5,9 +5,10 @@ import { Hero, type Slide } from "@/components/Hero";
 import { Reveal } from "@/components/Reveal";
 import { LOJAS, LINK_AVALIACAO_GOOGLE, linkWhatsappGeral } from "@/lib/lojas";
 import { clientesAtendidos } from "@/lib/vantagens";
-import { buscar, categorias, fotoDaCategoria, maiorDesconto, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
+import { buscar, categorias, fotoDaCategoria, garantirCatalogo, maiorDesconto, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
 
-export default function Home() {
+export default async function Home() {
+  await garantirCatalogo();
   const slides: Slide[] = [
     {
       etiqueta: "Entrega nacional",

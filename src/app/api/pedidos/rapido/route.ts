@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bancoLigado } from "@/lib/db";
-import { produtoPorRef } from "@/lib/catalogo";
+import { garantirCatalogo, produtoPorRef } from "@/lib/catalogo";
 import { LOJAS } from "@/lib/lojas";
 import { validarPedido } from "@/lib/pedido-servidor";
 import { regrasCashback } from "@/lib/regras-servidor";
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
   }
   const emailOk = [perfil.email, s.email].find((e) => e && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) ?? "";
 
+  await garantirCatalogo();
   const regras = await regrasCashback();
   const v = validarPedido(
     {
