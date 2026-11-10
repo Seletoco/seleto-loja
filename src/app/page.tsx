@@ -73,7 +73,7 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(loja) }} />
       <Hero slides={slides} />
 
-      {/* benefícios: cartões escuros com ícone, bem visíveis; o do WhatsApp abre a conversa quando o número está configurado */}
+      {/* benefícios: cartões em cinza suave com ícone, bem visíveis; o do WhatsApp abre a conversa quando o número está configurado */}
       <section className="mx-auto grid max-w-[1500px] grid-cols-2 gap-3 px-4 sm:grid-cols-4">
         {[
           { t: "Entrega para todo o Brasil", d: "Frete e prazo no pedido", href: "", icone: "M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" },
@@ -87,16 +87,16 @@ export default async function Home() {
                 <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icone} /></svg>
               </span>
               <span className="mt-3 block text-sm font-black uppercase tracking-wide">{t}</span>
-              <span className="mt-1 block text-xs text-white/70">{d}</span>
+              <span className="mt-1 block text-xs text-fraco">{d}</span>
             </>
           );
-          const base = "flex flex-col items-center bg-texto px-4 py-6 text-center text-white";
+          const base = "flex flex-col items-center bg-[#ebebed] px-4 py-6 text-center text-texto";
           if (!href) return <div key={t} className={base}>{miolo}</div>;
           const externo = href.startsWith("http");
           return externo ? (
-            <a key={t} href={href} target="_blank" rel="noopener noreferrer" className={`${base} transition hover:-translate-y-0.5 hover:bg-black`}>{miolo}</a>
+            <a key={t} href={href} target="_blank" rel="noopener noreferrer" className={`${base} transition hover:-translate-y-0.5 hover:bg-[#e0e0e3]`}>{miolo}</a>
           ) : (
-            <Link key={t} href={href} className={`${base} transition hover:-translate-y-0.5 hover:bg-black`}>{miolo}</Link>
+            <Link key={t} href={href} className={`${base} transition hover:-translate-y-0.5 hover:bg-[#e0e0e3]`}>{miolo}</Link>
           );
         })}
       </section>
