@@ -160,6 +160,7 @@ export interface DadosMenu {
   acessorios: string[];
   marcas: string[];
   destaques: Produto[];
+  novos: Produto[];
 }
 export function dadosMenu(): DadosMenu {
   const cats = categorias().map((c) => c.valor);
@@ -169,6 +170,7 @@ export function dadosMenu(): DadosMenu {
     acessorios: ["Bonés", "Chinelos", "Bolsas e Mochilas", "Outros"].filter(tem),
     marcas: marcas().slice(0, 12).map((m) => m.valor),
     destaques: promocoes(2),
+    novos: novidades(2),
   };
 }
 
