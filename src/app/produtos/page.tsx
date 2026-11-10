@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProdutoCard } from "@/components/ProdutoCard";
-import { buscar, categorias, marcas, tamanhosDisponiveis, type Ordem } from "@/lib/catalogo";
+import { buscar, categorias, garantirCatalogo, marcas, tamanhosDisponiveis, type Ordem } from "@/lib/catalogo";
 
 const POR_PAGINA = 24;
 type Q = { q?: string; categoria?: string; marca?: string; tamanho?: string; promo?: string; ordem?: string; pagina?: string };
@@ -15,6 +15,7 @@ const ORDENS: [string, string][] = [
 
 export default async function Produtos({ searchParams }: { searchParams: Promise<Q> }) {
   const q = await searchParams;
+  await garantirCatalogo();
   const ordem = (["menor", "maior", "promo", "novo"].includes(q.ordem ?? "") ? q.ordem : "relevancia") as Ordem;
   const lista = buscar({ q: q.q, categoria: q.categoria, marca: q.marca, tamanho: q.tamanho, promo: q.promo === "1", ordem });
   const pagina = Math.max(1, Number(q.pagina) || 1);

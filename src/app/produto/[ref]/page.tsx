@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import { AdicionarAoCarrinho } from "@/components/AdicionarAoCarrinho";
 import { BlocoVantagensProduto } from "@/components/BlocoVantagensProduto";
 import { Fileira } from "@/components/Fileira";
-import { produtoPorRef, relacionados } from "@/lib/catalogo";
+import { garantirCatalogo, produtoPorRef, relacionados } from "@/lib/catalogo";
 import { reais } from "@/lib/format";
 import { faixaCashback } from "@/lib/vantagens";
 import { regrasCashback } from "@/lib/regras-servidor";
 
 export default async function ProdutoPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;
+  await garantirCatalogo();
   const p = produtoPorRef(ref);
   if (!p) notFound();
   const desconto = p.precoDe ? Math.round(((p.precoDe - p.preco) / p.precoDe) * 100) : 0;

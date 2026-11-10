@@ -1,14 +1,79 @@
 /**
  * Fonte dos produtos da loja.
  *
- * Hoje lê o instantâneo `data/produtos.json` (gerado do catálogo, só para o site de teste).
- * Em produção a mesma interface passa a ler as views `loja.v_produtos` / `loja.v_variacoes`
- * do Supabase, só em leitura — ver `supabase/migrations`. As páginas não mudam.
+ * Com o banco ligado, os produtos, o preço, a promoção e os tamanhos VENDÁVEIS (2+ em estoque nas 4 lojas) vêm das views
+ * `loja.v_produtos` / `loja.v_variacoes` (só leitura), guardados em memória por 5 minutos. A foto vem do banco quando existe
+ * (migration 011) ou do arquivo `data/produtos.json` (instantâneo antigo do catálogo). Sem banco, ou se a leitura falhar,
+ * o site usa esse arquivo e segue funcionando. As funções abaixo continuam síncronas: as páginas chamam
+ * `await garantirCatalogo()` antes de usá-las. `CATALOGO_DO_BANCO=0` (na Vercel) volta para o arquivo na hora.
  */
 import dados from "../../data/produtos.json";
+import { bancoLigado } from "./db";
+import { lerCatalogoDoBanco } from "./catalogo-banco";
 import type { Produto } from "./tipos";
 
-const TODOS = dados as Produto[];
+const ARQUIVO = dados as Produto[];
+const ARQUIVO_POR_REF = new Map(ARQUIVO.map((p) => [p.ref, p]));
+let TODOS: Produto[] = ARQUIVO;
+
+const VALIDADE_MS = 5 * 60_000; // o estoque do banco já atrasa horas; 5 minutos de cache não pesa
+const NOVA_TENTATIVA_MS = 30_000; // se a leitura falhar, usa o arquivo e tenta de novo em 30 s
+const MINIMO_DE_PRODUTOS = 200; // lista pequena demais = leitura suspeita: não troca o catálogo
+let fonte: "banco" | "arquivo" = "arquivo";
+let leuEm = 0;
+let tentouEm = 0;
+let ultimoErro: string | null = null;
+let emCurso: Promise<void> | null = null;
+
+/** O catálogo do banco está desligado de propósito? (`CATALOGO_DO_BANCO=0`) */
+const desligado = () => process.env.CATALOGO_DO_BANCO === "0";
+
+/**
+ * Chame antes de usar o catálogo numa página ou rota. Na primeira vez espera a leitura; depois entrega o que já tem
+ * e atualiza em segundo plano quando passa de 5 minutos. Nunca lança: em caso de erro, o catálogo antigo continua valendo.
+ */
+export async function garantirCatalogo(): Promise<void> {
+  if (!bancoLigado() || desligado()) return;
+  // Já tem uma leitura em andamento (outra parte da mesma página pediu agora): na primeira vez TODOS esperam por ela,
+  // senão alguém usaria o arquivo antigo (preço e produtos velhos) por engano.
+  if (emCurso) {
+    if (fonte !== "banco") await emCurso;
+    return;
+  }
+  const agora = Date.now();
+  if (fonte === "banco" && agora - leuEm < VALIDADE_MS) return;
+  if (fonte !== "banco" && agora - tentouEm < NOVA_TENTATIVA_MS) return;
+  tentouEm = agora;
+  emCurso = (async () => {
+    try {
+      const lista = await lerCatalogoDoBanco(ARQUIVO_POR_REF, process.env.CATALOGO_SEM_FOTO !== "1");
+      if (lista.length >= MINIMO_DE_PRODUTOS) {
+        TODOS = lista;
+        fonte = "banco";
+        leuEm = Date.now();
+        ultimoErro = null;
+      } else {
+        ultimoErro = `leitura trouxe só ${lista.length} produtos (mínimo ${MINIMO_DE_PRODUTOS}); mantive o catálogo anterior`;
+      }
+    } catch (e) {
+      ultimoErro = e instanceof Error ? e.message : String(e);
+      console.error("catálogo: leitura do banco falhou, mantendo o anterior:", ultimoErro);
+    } finally {
+      emCurso = null;
+    }
+  })();
+  if (fonte !== "banco") await emCurso;
+}
+
+/** Para o painel admin conferir de onde vem o catálogo agora. */
+export const statusDoCatalogo = () => ({
+  fonte,
+  produtos: TODOS.length,
+  comFoto: TODOS.filter((p) => p.foto).length,
+  atualizadoEm: leuEm || null,
+  erro: ultimoErro,
+  desligado: desligado(),
+});
 
 export type Ordem = "relevancia" | "menor" | "maior" | "promo" | "novo";
 
