@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { dataBr, reais } from "@/lib/format";
 import { cpfValido, formatarCpf } from "@/lib/cpf";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
-import { MODO_REAL } from "@/lib/modo";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
 import { BENEFICIOS_POR_NIVEL, BENEFICIOS_SAO_EXEMPLO } from "@/lib/vantagens";
 
@@ -55,6 +55,13 @@ export default function Conta() {
       .finally(() => setVerificando(false));
   }, [receber]);
 
+  // Veio de outra tela (ex.: checkout) pedindo para voltar depois de entrar com a conta ligada.
+  useEffect(() => {
+    if (!dados) return;
+    const v = new URLSearchParams(window.location.search).get("voltar");
+    if (v && v.startsWith("/") && !v.startsWith("//")) window.location.assign(v);
+  }, [dados]);
+
   async function sair() {
     await fetch("/api/conta/sair", { method: "POST" });
     setDados(null);
@@ -68,17 +75,10 @@ export default function Conta() {
 }
 
 function Login({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
-  const [modo, setModo] = useState<"email" | "cpf">("email");
   return (
     <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-10">
       <BoasVindas titulo="Sua conta Seleto" className="hidden lg:order-first lg:block" />
-      <div className="space-y-3">
-      <div className="grid grid-cols-2 border border-borda text-xs font-bold uppercase tracking-wide">
-        <button type="button" onClick={() => setModo("email")} className={`py-3 ${modo === "email" ? "bg-texto text-white" : "hover:bg-tenue"}`}>E-mail e senha</button>
-        <button type="button" onClick={() => setModo("cpf")} className={`py-3 ${modo === "cpf" ? "bg-texto text-white" : "hover:bg-tenue"}`}>Só consultar com CPF</button>
-      </div>
-      {modo === "email" ? <LoginEmail aoEntrar={aoEntrar} /> : <LoginCpf aoEntrar={aoEntrar} />}
-      </div>
+      <LoginEmail aoEntrar={aoEntrar} />
     </div>
   );
 }
@@ -135,7 +135,7 @@ function LoginEmail({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
     <form onSubmit={enviar} className="space-y-3 rounded-xl border border-borda bg-painel p-6">
       <h1 className="text-xl font-bold">{criando ? "Criar minha conta" : "Entrar na minha conta"}</h1>
       <p className="text-sm text-fraco">
-        {criando ? "Depois de criar, você liga a conta ao seu cadastro da Seleto com CPF e celular." : "Use o e-mail e a senha que você cadastrou."}
+        {criando ? "Depois de criar, você liga a conta ao seu cadastro da Seleto com CPF, celular, nome completo e data de nascimento." : "Para ver seu cashback e comprar com vantagens é preciso ter conta. Entre com o e-mail e a senha que você cadastrou."}
       </p>
       {criando ? <input className="campo" placeholder="Seu nome (como está no cadastro da Seleto)" maxLength={60} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="given-name" required /> : null}
       <input className="campo" type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
@@ -152,6 +152,7 @@ function LoginEmail({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
 /** Passo 2 da conta por e-mail: liga ao cadastro da Seleto conferindo CPF + celular. */
 function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: () => Promise<boolean>; sair: () => void }) {
   const [nome, setNome] = useState(pendente.nome ?? "");
+  const [nascimento, setNascimento] = useState("");
   const [cpf, setCpf] = useState("");
   const [telefone, setTelefone] = useState("");
   const [erro, setErro] = useState("");
@@ -161,9 +162,11 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
     e.preventDefault();
     setErro("");
     if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
+    if (nome.trim().split(/\s+/).length < 2) return setErro("Informe seu nome completo, como está no cadastro da Seleto.");
+    if (!nascimento) return setErro("Informe a data de nascimento.");
     setCarregando(true);
     try {
-      const r = await post("/api/conta/vincular", { nome, cpf, telefone });
+      const r = await post("/api/conta/vincular", { nome, nascimento, cpf, telefone });
       if (!r.ok) return setErro((await r.json().catch(() => ({}))).erro ?? "Não foi possível ligar a conta.");
       if (!(await aoLigar())) setErro("Ligamos, mas não foi possível carregar seus dados. Atualize a página.");
     } catch {
@@ -179,52 +182,23 @@ function Vincular({ pendente, aoLigar, sair }: { pendente: SemVinculo; aoLigar: 
     <form onSubmit={ligar} className="space-y-3 rounded-xl border border-borda bg-painel p-6">
       <h1 className="text-xl font-bold">Olá{pendente.nome ? `, ${pendente.nome}` : ""}!</h1>
       <p className="text-sm text-fraco">
-        Sua conta {pendente.email ? <b className="text-texto">{pendente.email}</b> : null} foi criada. Agora ligue ao seu cadastro da Seleto para ver seu cashback e seu nível: informe o CPF e o celular que você usa nas nossas lojas.
+        Sua conta {pendente.email ? <b className="text-texto">{pendente.email}</b> : null} foi criada. Agora ligue ao seu cadastro da Seleto para ver seu cashback e seu nível. Informe os dados do seu cadastro nas nossas lojas: nome completo, data de nascimento, CPF e celular. Tudo precisa conferir.
       </p>
-      <input className="campo" placeholder="Seu nome, como está no cadastro" maxLength={80} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="given-name" required />
+      <input className="campo" placeholder="Nome completo, como está no cadastro" maxLength={120} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" required />
+      <label className="block text-xs font-bold uppercase tracking-wide text-fraco" htmlFor="nasc">Data de nascimento</label>
+      <input id="nasc" className="campo !mt-1" type="date" min="1900-01-01" max={new Date().toISOString().slice(0, 10)} value={nascimento} onChange={(e) => setNascimento(e.target.value)} autoComplete="bday" required />
       <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
       <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" required />
       {erro ? <p className="text-sm text-promo" role="alert">{erro}</p> : null}
       <button className="btn w-full" disabled={carregando}>{carregando ? "Conferindo…" : "Ligar ao meu cadastro"}</button>
-      <p className="text-xs text-fraco">Seu CPF é usado só para conferir o cadastro e não fica guardado. Nunca foi cliente nas lojas? Sua conta continua valendo e o cashback aparece depois da primeira compra.</p>
+      <p className="text-xs text-fraco">Seu CPF é usado só para conferir o cadastro e não fica guardado.</p>
+      <p className="text-xs text-fraco">
+        Nunca comprou nas nossas lojas? Sua conta continua valendo para comprar no site, e o cashback aparece depois da primeira compra.{" "}
+        <Link href="/produtos" className="font-bold text-texto underline underline-offset-4">Continuar comprando</Link>
+      </p>
       <button type="button" onClick={sair} className="w-full text-center text-xs font-bold underline underline-offset-4">Sair</button>
     </form>
     </div>
-  );
-}
-
-function LoginCpf({ aoEntrar }: { aoEntrar: (d: Carregado) => void }) {
-  const [cpf, setCpf] = useState("");
-  const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(false);
-
-  async function entrar(e: React.FormEvent) {
-    e.preventDefault();
-    setErro("");
-    if (!cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
-    setCarregando(true);
-    try {
-      const r = await post("/api/conta/entrar", { cpf });
-      if (!r.ok) return setErro((await r.json()).erro ?? "Não foi possível entrar.");
-      const d = await fetch("/api/conta/dados");
-      if (d.ok) aoEntrar(await d.json());
-      else setErro("Não foi possível carregar seus dados.");
-    } catch {
-      setErro("Sem conexão. Tente novamente.");
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  return (
-    <form onSubmit={entrar} className="space-y-3 rounded-xl border border-borda bg-painel p-6">
-      <h1 className="text-xl font-bold">Minha conta Seleto</h1>
-      <p className="text-sm text-fraco">Digite seu CPF para ver seu cashback e seu nível.</p>
-      <input className="campo" placeholder="Seu CPF" inputMode="numeric" maxLength={14} value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" required />
-      {erro ? <p className="text-sm text-promo">{erro}</p> : null}
-      <button className="btn w-full" disabled={carregando}>{carregando ? "Entrando…" : "Entrar"}</button>
-      {MODO_REAL ? null : <p className="text-xs text-fraco">Teste: CPF 529.982.247-25.</p>}
-    </form>
   );
 }
 

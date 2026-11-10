@@ -7,9 +7,10 @@ Site separado do catálogo e do sistema em produção. **Não altera nada do que
 - **Pagamento em aberto:** o site não cobra. Retirada → "Pagar na retirada"; entrega em casa → "Combinar pelo WhatsApp". Pix e cartão foram retirados até ligar um provedor. Veja `src/lib/pagamento.ts`.
 - **Pedidos:** com o banco ligado, o checkout grava em `loja.pedidos` (o servidor recalcula preços e total) e o `/admin` lê de lá. Sem banco (demonstração), ficam no navegador (localStorage).
 - **Conta do cliente:** e-mail + senha (hash scrypt) em `loja.contas`, com passo de ligar ao cadastro da Seleto por **CPF + celular** conferidos no PDVNet. Enquanto não houver código por WhatsApp, a sessão fica "não verificada" (sem histórico de compras). Um CPF liga a uma conta só.
-- **Área do cliente** (`/conta`): **CPF completo** (validado); 10 consultas/hora por rede. Mostra só o primeiro nome e os valores.
-  Em demonstração, use o CPF `529.982.247-25`.
-- **Admin** (`/admin`): em modo de teste (sem banco) vale um par de teste embutido em `src/lib/admin.ts`. **Com o banco ligado, o admin fica bloqueado** até definir `ADMIN_USUARIO`, `ADMIN_SENHA` (12+) e `ADMIN_SEGREDO` (16+) na Vercel.
+- **Área do cliente** (`/conta`): **só com conta** (e-mail + senha). Não existe mais entrada só por CPF. Depois de criar a conta, a pessoa liga ao cadastro da Seleto informando **CPF, celular, nome completo e data de nascimento**, e tudo precisa bater com o MESMO cadastro do PDVNet (view `loja.v_cliente_identidade`, migration 009). Cadastro sem data de nascimento não liga (fale com a loja).
+- **Cashback** só para conta ligada; o servidor confere o saldo real no pedido. **Compra com 1 clique** (produto): só conta ligada, 1 unidade, retirada na loja, pagamento na retirada, dados do cadastro. `NEXT_PUBLIC_EXIGIR_LOGIN=1` obriga login para finalizar qualquer pedido.
+- **Black Friday:** faixa + popup de entrada aparecem em prévias da Vercel e em desenvolvimento; em produção só com `NEXT_PUBLIC_BLACK_FRIDAY=1`.
+- **Admin** (`/admin`): em modo de teste (sem banco) vale um par de teste embutido em `src/lib/admin.ts`. **Em qualquer deploy (produção ou prévia) o admin fica bloqueado** até definir `ADMIN_USUARIO`, `ADMIN_SENHA` (12+) e `ADMIN_SEGREDO` (16+) na Vercel.
 - Produtos hoje vêm de `data/produtos.json` (instantâneo do catálogo). Gerar de novo:
   `python3 scripts/gerar-dados.py /caminho/seleto-catalogo/cliente.html`
 
@@ -17,7 +18,7 @@ Site separado do catálogo e do sistema em produção. **Não altera nada do que
 `supabase/migrations/001_loja_schema.sql` (já aplicada) cria o esquema `loja`, 3 tabelas novas e views de **leitura**
 (`v_produtos`, `v_variacoes`, `v_cashback`, `v_cliente_verificacao`) e o perfil `loja_app` (sem login).
 Para ligar: rode `002_ligar_perfil_loja_app.sql` no SQL Editor com uma senha sua e defina `LOJA_DATABASE_URL` na Vercel.
-**Migrations 007 (regras de cashback + pedidos) e 008 (contas) estão escritas e NÃO foram aplicadas**: só aplicar quando o Victor disser. Sem a 007/008, regras caem no padrão e pedidos/contas por e-mail não funcionam.
+**Migrations 007 (regras de cashback + pedidos) e 008 (contas) já foram aplicadas. A 009 (identidade do cliente: nome completo, data de nascimento, celular) está escrita e NÃO foi aplicada**: só aplicar quando o Victor disser. Sem a 009, ligar a conta ao cadastro, a compra de 1 clique e o preenchimento do checkout não funcionam.
 
 ## Ir ao ar (modo real)
 1. Aplicar migrations 002 (com senha sua), 007 e 008 (com autorização).
