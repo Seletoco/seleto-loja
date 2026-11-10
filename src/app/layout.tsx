@@ -5,6 +5,7 @@ import { CarrinhoProvider } from "@/lib/carrinho";
 import { Cabecalho } from "@/components/Cabecalho";
 import { Rodape } from "@/components/Rodape";
 import { Sacola } from "@/components/Sacola";
+import { PopupEntrada } from "@/components/PopupEntrada";
 import { Miolo } from "@/components/Miolo";
 import { dadosMenu } from "@/lib/catalogo";
 import { MODO_REAL, blackFridayAtiva } from "@/lib/modo";
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Miolo>{children}</Miolo>
           <Rodape />
           <Sacola />
+          {blackFridayAtiva() ? <PopupEntrada /> : null}
         </CarrinhoProvider>
       </body>
     </html>
