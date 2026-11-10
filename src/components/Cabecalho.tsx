@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { BalaoBlackFriday } from "./BalaoBlackFriday";
 import { useCarrinho } from "@/lib/carrinho";
 import type { DadosMenu } from "@/lib/catalogo";
 import { reais } from "@/lib/format";
 
 const q = (v: string) => encodeURIComponent(v);
 
-export function Cabecalho({ menu, teste }: { menu: DadosMenu; teste: boolean }) {
+export function Cabecalho({ menu, teste, blackFriday = false }: { menu: DadosMenu; teste: boolean; blackFriday?: boolean }) {
   const { quantidade, pronto, abrir } = useCarrinho();
   const [mobile, setMobile] = useState(false);
   const [busca, setBusca] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-white">
+      {blackFriday ? <BalaoBlackFriday /> : null}
       {teste ? (
         <div className="bg-destaque px-4 py-1 text-center text-[11px] font-bold uppercase tracking-wide text-texto">
           Ambiente de teste — pedidos e pagamentos são só de exemplo
