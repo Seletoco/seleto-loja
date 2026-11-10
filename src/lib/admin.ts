@@ -8,7 +8,6 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { bancoLigado } from "@/lib/db";
 
 export const COOKIE = "seleto_admin";
 const DURACAO_S = 60 * 60 * 8;
@@ -19,10 +18,10 @@ const segredo = () => process.env.ADMIN_SEGREDO ?? "segredo-de-teste-troque-na-v
 /** Verdadeiro enquanto estiver usando as credenciais de teste embutidas. */
 export const usandoCredencialDeTeste = () => !process.env.ADMIN_SENHA;
 /**
- * Site real (banco ligado): as credenciais e o segredo de teste NUNCA valem. Sem ADMIN_SENHA forte e ADMIN_SEGREDO
+ * Em qualquer deploy (produção ou prévia da Vercel): as credenciais e o segredo de teste NUNCA valem. Só valem no seu computador (desenvolvimento). Sem ADMIN_SENHA forte e ADMIN_SEGREDO
  * definidos na Vercel, o admin fica bloqueado (em vez de aceitar uma senha que está no código).
  */
-export const adminBloqueado = () => bancoLigado() && (!process.env.ADMIN_SENHA || process.env.ADMIN_SENHA.length < 12 || !process.env.ADMIN_SEGREDO || process.env.ADMIN_SEGREDO.length < 16);
+export const adminBloqueado = () => process.env.NODE_ENV === "production" && (!process.env.ADMIN_SENHA || process.env.ADMIN_SENHA.length < 12 || !process.env.ADMIN_SEGREDO || process.env.ADMIN_SEGREDO.length < 16);
 
 const assinar = (texto: string) => createHmac("sha256", segredo()).update(texto).digest("hex");
 const iguais = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));

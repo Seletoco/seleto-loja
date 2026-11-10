@@ -11,3 +11,6 @@ export const MODO_REAL = process.env.NEXT_PUBLIC_MODO_REAL === "1";
  */
 export const blackFridayAtiva = () =>
   process.env.NEXT_PUBLIC_BLACK_FRIDAY === "1" || process.env.NEXT_PUBLIC_VERCEL_ENV !== "production";
+
+/** Com `NEXT_PUBLIC_EXIGIR_LOGIN=1`, só quem tem conta e está logado consegue finalizar um pedido. Desligado por padrão. */
+export const EXIGIR_LOGIN = process.env.NEXT_PUBLIC_EXIGIR_LOGIN === "1";

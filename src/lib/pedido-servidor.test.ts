@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validarPedido } from "./pedido-servidor";
+import { limitarCashbackAoSaldo, validarPedido } from "./pedido-servidor";
 import type { Produto } from "./tipos";
 
 const tenis: Produto = { ref: "T1", nome: "Tênis X", marca: "nike", categoria: "Tênis", cor: "Preto", tamanhos: ["40", "42"], preco: 300, precoDe: null, foto: null, novo: false };
@@ -61,4 +61,17 @@ test("recusa produto inexistente, tamanho indisponível, quantidade ruim e dados
   assert.ok("erro" in validarPedido({ ...base, itens: [] }, achar, 20));
   assert.ok("erro" in validarPedido({ ...base, cliente: { nome: "A", telefone: "1" } }, achar, 20));
   assert.ok("erro" in validarPedido({ ...base, entrega: { tipo: "retirada_loja", loja: "Inexistente" } }, achar, 20));
+});
+
+test("cashback é limitado ao saldo real e o total é recalculado", () => {
+  const r = validarPedido({ ...base, cashback: { usado: 100, telefone: "21999990000" } }, achar, 100);
+  assert.ok("pedido" in r);
+  if ("pedido" in r) {
+    assert.equal(r.pedido.cashbackUsado, 100);
+    const limitado = limitarCashbackAoSaldo(r.pedido, 29.4);
+    assert.equal(limitado.cashbackUsado, 29.4);
+    assert.equal(limitado.total, 570.6);
+    assert.equal(limitarCashbackAoSaldo(r.pedido, 0).cashbackUsado, 0);
+    assert.equal(limitarCashbackAoSaldo(r.pedido, 500).cashbackUsado, 100); // saldo maior que o pedido: nada muda
+  }
 });
