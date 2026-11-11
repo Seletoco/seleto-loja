@@ -596,7 +596,9 @@ function AbaVantagens({ dados }: { dados: DadosConta }) {
 
       <Cartao icone="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s1.5-2 4-2 4 2 8 2 4-2 4-2M2 21h20M7 11V7M12 11V7M17 11V7M7 4v.01M12 4v.01M17 4v.01" titulo="Presente de aniversário" texto="No mês do seu aniversário você ganha um cashback de presente, automático." breve />
 
-      <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Avalie e ganhe +5%" texto="Avalie sua compra no Google e ganhe mais 5% de cashback. O vendedor confere e libera para você." breve />
+      <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Avaliou, ganhou R$ 50 de cashback" texto="Avalie sua compra da Seleto no Google e ganhe R$ 50 de cashback. A loja confere a sua avaliação e libera o valor para você.">
+        {LINK_AVALIACAO_GOOGLE ? <a href={LINK_AVALIACAO_GOOGLE} target="_blank" rel="noopener noreferrer" className="btn-claro w-full">Avaliar no Google</a> : null}
+      </Cartao>
     </div>
   );
 }
