@@ -7,7 +7,7 @@ import { cpfValido, formatarCpf } from "@/lib/cpf";
 import { nomeParaPreencher } from "@/lib/cpf-nome";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
-import { BENEFICIOS_POR_NIVEL, PORTA_DO_CLUBE } from "@/lib/vantagens";
+import { BENEFICIOS_POR_NIVEL, PORTA_DO_CLUBE, linkGrupoVip } from "@/lib/vantagens";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
 const diasAte = (iso: string) => Math.round((new Date(iso + "T00:00:00Z").getTime() - new Date(hoje() + "T00:00:00Z").getTime()) / 86_400_000);
@@ -445,6 +445,9 @@ function AbaNivel({ dados }: { dados: DadosConta }) {
                   <ul className="mt-1 list-disc pl-4 text-xs">
                     {(BENEFICIOS_POR_NIVEL.find((b) => b.nivel === nome)?.beneficios ?? []).map((b) => <li key={b}>{b}</li>)}
                   </ul>
+                  {nome === n.nome && linkGrupoVip(nome) ? (
+                    <a href={linkGrupoVip(nome)!} target="_blank" rel="noopener noreferrer" className="btn !mt-2 !px-3 !py-2 !text-xs">Entrar no grupo VIP {nome}</a>
+                  ) : null}
                 </div>
               </div>
               <span className={`text-xs font-bold uppercase ${atingido ? "text-ok" : "text-fraco"}`}>{atingido ? "Conquistado" : "A conquistar"}</span>
@@ -565,6 +568,12 @@ function AbaVantagens({ dados }: { dados: DadosConta }) {
   }
   return (
     <div className="grid items-start gap-3 xl:grid-cols-2">
+      {linkGrupoVip(dados.nivel.nome) ? (
+        <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo={`Grupo VIP ${dados.nivel.nome}`} texto={`Você é ${dados.nivel.nome}! Entre no grupo VIP ${dados.nivel.nome} da Seleto, no WhatsApp.`}>
+          <a href={linkGrupoVip(dados.nivel.nome)!} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar no grupo VIP {dados.nivel.nome}</a>
+        </Cartao>
+      ) : null}
+
       <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Lista VIP" texto="Entre no grupo VIP da Seleto e receba ofertas e novidades antes de todo mundo.">
         {dados.vipLink ? (
           <a href={dados.vipLink} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar na lista VIP</a>

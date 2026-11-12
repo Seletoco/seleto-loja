@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ProdutoCard } from "@/components/ProdutoCard";
 import { ehGenero } from "@/lib/genero";
+import { LINK_CLUBE_FARM } from "@/lib/vantagens";
 import { buscar, categorias, garantirCatalogo, marcas, tamanhosDisponiveis, type Ordem } from "@/lib/catalogo";
 
 export const metadata: Metadata = { title: "Todos os produtos", alternates: { canonical: "/produtos" } };
@@ -37,8 +38,19 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
   const titulo = (nomeGenero ? `${nomeGenero}${q.categoria ? ` · ${q.categoria}` : ""}` : null) ?? q.categoria ?? q.marca ?? (q.promo === "1" ? "Ofertas" : q.q ? `“${q.q}”` : "Todos os produtos");
   const filtrosAtivos = [nomeGenero, q.categoria, q.marca, q.tamanho && `Tam. ${q.tamanho}`, q.promo === "1" && "Em promoção"].filter(Boolean) as string[];
 
+  const mostrarFarm = [q.categoria, q.marca].some((v) => v?.toLowerCase() === "farm") || genero === "feminino";
+
   return (
     <div className="space-y-6">
+      {mostrarFarm ? (
+        <a href={LINK_CLUBE_FARM} target="_blank" rel="noopener noreferrer" className="flex flex-wrap items-center justify-between gap-3 bg-[#ebebed] px-5 py-4 transition hover:bg-[#e0e0e3]">
+          <span>
+            <span className="block text-sm font-black uppercase tracking-wide">Clube Seleto Farm &amp; Feminino</span>
+            <span className="block text-xs text-fraco">Entre no grupo do clube no WhatsApp.</span>
+          </span>
+          <span className="btn !px-4 !py-2 !text-xs">Entrar no clube</span>
+        </a>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="titulao text-4xl sm:text-6xl">{titulo}</h1>

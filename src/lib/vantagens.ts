@@ -39,3 +39,12 @@ export const clientesAtendidos = (): number | null => {
   const n = Number(process.env.NEXT_PUBLIC_CLIENTES_ATENDIDOS);
   return Number.isFinite(n) && n > 0 ? n : null;
 };
+
+/**
+ * Links dos grupos pelo domínio da Seleto (o SeleChat redireciona para o convite do WhatsApp; o convite em si não fica no site).
+ * `/v/ouro` e `/v/diamante` (grupos VIP por nível, só Ouro e Diamante têm grupo) e `/farm` (clube Farm & Feminino).
+ */
+export const URL_CHAT = (process.env.NEXT_PUBLIC_CHAT_URL || "https://chat.seletoco.com.br").replace(/\/+$/, "");
+export const linkGrupoVip = (nivel: string): string | null =>
+  nivel === "Ouro" ? `${URL_CHAT}/v/ouro` : nivel === "Diamante" ? `${URL_CHAT}/v/diamante` : null;
+export const LINK_CLUBE_FARM = `${URL_CHAT}/farm`;
