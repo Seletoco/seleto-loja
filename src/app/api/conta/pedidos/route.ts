@@ -20,11 +20,11 @@ export async function GET() {
   const [itens, pix] = await Promise.all([
     banco.query<{ pedido_id: string; nome: string; tamanho: string | null; quantidade: number }>(`SELECT pedido_id::text, nome, tamanho, quantidade FROM loja.pedido_itens WHERE pedido_id = ANY($1::uuid[])`, [ids]),
     banco
-      .query<{ pedido_id: string; status: string; token: string; expira_em: Date | null }>(
-        `SELECT DISTINCT ON (pedido_id) pedido_id::text, status, token, expira_em FROM loja.pagamentos WHERE pedido_id = ANY($1::uuid[]) ORDER BY pedido_id, criado_em DESC`,
+      .query<{ pedido_id: string; metodo: string; status: string; token: string; expira_em: Date | null }>(
+        `SELECT DISTINCT ON (pedido_id) pedido_id::text, metodo, status, token, expira_em FROM loja.pagamentos WHERE pedido_id = ANY($1::uuid[]) ORDER BY pedido_id, criado_em DESC`,
         [ids],
       )
-      .catch(() => ({ rows: [] as { pedido_id: string; status: string; token: string; expira_em: Date | null }[] })),
+      .catch(() => ({ rows: [] as { pedido_id: string; metodo: string; status: string; token: string; expira_em: Date | null }[] })),
   ]);
   return NextResponse.json(
     {
@@ -38,7 +38,7 @@ export async function GET() {
           total: Number(r.total),
           entrega: r.entrega_tipo === "retirada_loja" ? `Retirada na loja ${LOJAS.find((l) => l.id === r.loja_retirada_id)?.nome ?? ""}`.trim() : "Entrega em casa",
           itens: itens.rows.filter((i) => i.pedido_id === r.id).map((i) => ({ nome: i.nome, tamanho: i.tamanho, quantidade: i.quantidade })),
-          pix: c ? { status: pendente ? "pendente" : c.status === "pendente" ? "expirado" : c.status, link: pendente ? `/pagar/${c.token}` : null } : null,
+          pix: c ? { metodo: c.metodo, status: pendente ? "pendente" : c.status === "pendente" ? "expirado" : c.status, link: pendente ? `/pagar/${c.token}` : null } : null,
         };
       }),
     },

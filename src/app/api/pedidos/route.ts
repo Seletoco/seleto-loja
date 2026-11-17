@@ -9,7 +9,7 @@ import { situacaoDoCashback } from "@/lib/regra-cashback";
 import { sessaoAtual } from "@/lib/sessao";
 import { EXIGIR_LOGIN } from "@/lib/modo";
 import { configDaRede, podeCobrar } from "@/lib/rede";
-import { gerarPix } from "@/lib/pagamentos";
+import { cartaoAtivo, gerarCartao, gerarPix } from "@/lib/pagamentos";
 
 const hojeBr = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
 
@@ -34,8 +34,11 @@ export async function POST(req: Request) {
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
   let p = v.pedido;
   // Pix na hora: o cliente paga já no checkout (a cobrança sai do total que o servidor calculou).
-  const querPix = (corpo as { pagamento?: unknown }).pagamento === "pix";
+  const formaOnline = (corpo as { pagamento?: unknown }).pagamento;
+  const querPix = formaOnline === "pix";
+  const querCartao = formaOnline === "cartao";
   if (querPix && !podeCobrar(configDaRede())) return NextResponse.json({ erro: "O pagamento por Pix não está disponível agora. Escolha outra forma." }, { status: 400 });
+  if (querCartao && !(cartaoAtivo() && podeCobrar(configDaRede()))) return NextResponse.json({ erro: "O pagamento por cartão não está disponível agora. Escolha outra forma." }, { status: 400 });
 
   if (p.cashbackUsado > 0) {
     if (!s?.cpfHash) return NextResponse.json({ erro: "Para usar o cashback, entre na sua conta e ligue ao seu cadastro da Seleto.", precisaLogin: true }, { status: 401 });
@@ -53,13 +56,13 @@ export async function POST(req: Request) {
     const numero = await gravarPedido(p, s?.contaId ?? null);
     let pagarUrl: string | null = null;
     let avisoPix: string | null = null;
-    if (querPix) {
-      // O pedido já está gravado; se o Pix falhar, ele continua valendo e a loja combina o pagamento.
-      const r = await gerarPix(numero).catch(() => ({ ok: false as const, erro: "falha" }));
+    if (querPix || querCartao) {
+      // O pedido já está gravado; se a cobrança falhar, ele continua valendo e a loja combina o pagamento.
+      const r = await (querCartao ? gerarCartao(numero) : gerarPix(numero)).catch(() => ({ ok: false as const, erro: "falha" }));
       if (r.ok) pagarUrl = `/pagar/${r.cobranca.token}`;
-      else avisoPix = "Seu pedido foi registrado, mas não conseguimos gerar o Pix agora. A loja vai chamar você no WhatsApp para combinar o pagamento.";
+      else avisoPix = `Seu pedido foi registrado, mas não conseguimos preparar o pagamento por ${querCartao ? "cartão" : "Pix"} agora. A loja vai chamar você no WhatsApp para combinar o pagamento.`;
     }
-    return NextResponse.json({ numero, subtotal: p.subtotal, frete: p.frete, cashbackUsado: p.cashbackUsado, total: p.total, pagamento: pagarUrl ? "pix" : p.pagamentoMetodo, pagarUrl, avisoPix });
+    return NextResponse.json({ numero, subtotal: p.subtotal, frete: p.frete, cashbackUsado: p.cashbackUsado, total: p.total, pagamento: pagarUrl ? (querCartao ? "cartao" : "pix") : p.pagamentoMetodo, pagarUrl, avisoPix });
   } catch (e) {
     console.error("pedido: falha ao gravar", e instanceof Error ? e.message : e);
     return NextResponse.json({ erro: "Não foi possível registrar o pedido agora. Tente novamente ou chame a loja no WhatsApp." }, { status: 500 });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { bancoLigado } from "@/lib/db";
 import { listarPedidos, STATUS_PEDIDO } from "@/lib/pedidos-admin";
-import { ultimasCobrancas } from "@/lib/pagamentos";
+import { cartaoAtivo, ultimasCobrancas } from "@/lib/pagamentos";
 import { configDaRede, podeCobrar } from "@/lib/rede";
 import { LOJAS } from "@/lib/lojas";
 import { reais } from "@/lib/format";
@@ -54,7 +54,7 @@ export default async function Pedidos({ searchParams }: { searchParams: Promise<
         {lista.length} {lista.length === 1 ? "pedido" : "pedidos"}{filtrando ? " no filtro" : ""} · {reais(total)} sem os cancelados
         {lista.length === 200 ? " · mostrando os 200 mais recentes" : ""}
       </p>
-      <PainelPedidos doBanco={pedidos} pixLigado={podeCobrar(configDaRede())} />
+      <PainelPedidos doBanco={pedidos} pixLigado={podeCobrar(configDaRede())} cartaoLigado={cartaoAtivo() && podeCobrar(configDaRede())} />
     </div>
   );
 }

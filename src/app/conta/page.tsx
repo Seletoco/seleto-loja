@@ -423,7 +423,7 @@ type PedidoDoSite = {
   total: number;
   entrega: string;
   itens: { nome: string; tamanho: string | null; quantidade: number }[];
-  pix: { status: string; link: string | null } | null;
+  pix: { metodo?: string; status: string; link: string | null } | null;
 };
 const STATUS_DO_PEDIDO: Record<string, string> = {
   aguardando_pagamento: "Recebido: a loja vai confirmar",
@@ -472,8 +472,8 @@ function AbaPedidos() {
                 <li key={k} className="flex justify-between gap-3"><span>{i.nome}{i.tamanho ? <span className="text-fraco"> · tam. {i.tamanho}</span> : null}</span><span className="text-fraco">{i.quantidade}×</span></li>
               ))}
             </ul>
-            {p.pix?.link ? <Link href={p.pix.link} className="btn w-full">Pagar com Pix</Link> : null}
-            {p.pix?.status === "pago" ? <p className="text-xs font-bold text-ok">Pix confirmado. Obrigado!</p> : null}
+            {p.pix?.link ? <Link href={p.pix.link} className="btn w-full">{p.pix.metodo === "cartao" ? "Pagar com cartão" : "Pagar com Pix"}</Link> : null}
+            {p.pix?.status === "pago" ? <p className="text-xs font-bold text-ok">{p.pix.metodo === "cartao" ? "Pagamento no cartão confirmado" : "Pix confirmado"}. Obrigado!</p> : null}
           </div>
         </li>
       ))}

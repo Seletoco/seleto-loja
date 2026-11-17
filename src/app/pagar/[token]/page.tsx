@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { bancoLigado } from "@/lib/db";
 import { cobrancaPorToken } from "@/lib/pagamentos";
 import { reais } from "@/lib/format";
-import { CopiaECola, Atualizador } from "./cliente";
+import { CopiaECola, Atualizador, FormCartao } from "./cliente";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Pagamento do pedido", robots: { index: false, follow: false } };
@@ -14,17 +14,18 @@ export default async function Pagar({ params }: { params: Promise<{ token: strin
   const { token } = await params;
   const c = await cobrancaPorToken(token).catch(() => null);
   if (!c) notFound();
-  const qr = c.status === "pendente" && c.emv ? await QRCode.toDataURL(c.emv, { margin: 1, width: 280 }) : null;
+  const cartao = c.metodo === "cartao";
+  const qr = !cartao && c.status === "pendente" && c.emv ? await QRCode.toDataURL(c.emv, { margin: 1, width: 280 }) : null;
   const vence = c.expiraEm ? new Date(c.expiraEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
     <div className="mx-auto max-w-md space-y-5 py-4">
       {c.ambiente === "sandbox" ? (
-        <p className="bg-destaque px-3 py-2 text-center text-xs font-bold uppercase tracking-wide">Ambiente de teste da Rede: não pague este QR Code</p>
+        <p className="bg-destaque px-3 py-2 text-center text-xs font-bold uppercase tracking-wide">Ambiente de teste da Rede: {cartao ? "use só cartões de teste" : "não pague este QR Code"}</p>
       ) : null}
       <div className="text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-fraco">Pedido {c.pedidoNumero}</p>
-        <h1 className="titulao mt-1 text-3xl">Pagamento por Pix</h1>
+        <h1 className="titulao mt-1 text-3xl">{cartao ? "Pagamento por cartão" : "Pagamento por Pix"}</h1>
         <p className="mt-2 text-3xl font-black">{reais(c.valor)}</p>
       </div>
 
@@ -34,6 +35,8 @@ export default async function Pagar({ params }: { params: Promise<{ token: strin
           <p className="mt-1 text-sm text-fraco">Obrigado. A loja vai separar o seu pedido e avisar você pelo WhatsApp.</p>
           <a href="/conta?aba=pedidos" className="btn mt-4">Ver meus pedidos</a>
         </div>
+      ) : cartao && c.status === "pendente" ? (
+        <FormCartao token={token} valor={c.valor} parcelasMax={c.parcelasMax} />
       ) : c.status === "pendente" && qr && c.emv ? (
         <div className="space-y-4 border border-borda bg-painel p-5 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- QR Code gerado no servidor (data URL) */}
@@ -45,8 +48,8 @@ export default async function Pagar({ params }: { params: Promise<{ token: strin
         </div>
       ) : (
         <div className="border border-borda bg-painel p-6 text-center">
-          <p className="font-bold">{c.status === "expirado" ? "Este Pix venceu." : c.status === "cancelado" ? "Este Pix foi cancelado." : "Este Pix não está disponível."}</p>
-          <p className="mt-1 text-sm text-fraco">Fale com a loja pelo WhatsApp para receber um novo.</p>
+          <p className="font-bold">{c.status === "erro" && cartao ? "Não conseguimos confirmar este pagamento." : c.status === "expirado" ? "Este link venceu." : c.status === "cancelado" ? "Este pagamento foi cancelado ou devolvido." : "Este link não está disponível."}</p>
+          <p className="mt-1 text-sm text-fraco">{c.status === "erro" && cartao ? "Não tente pagar de novo: fale com a loja pelo WhatsApp que conferimos na Rede." : "Fale com a loja pelo WhatsApp para receber um novo."}</p>
         </div>
       )}
       <p className="text-center text-xs text-fraco">Pagamento processado pela Rede (Itaú). A Seleto nunca pede senha nem dados do cartão por mensagem.</p>
