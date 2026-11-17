@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { capturaLigada, ocultar, paramsOcultos, respostaDeCaptura } from "./tray-captura";
+import { callbackPermitido, capturaLigada, ocultar, paramsOcultos, respostaDeCaptura } from "./tray-captura";
 
 test("só liga com TRAY_CAPTURA=1", () => {
   assert.equal(capturaLigada({}), false);
@@ -26,4 +26,14 @@ test("respostas mínimas: auth devolve token de captura; pedidos vêm vazios", (
   assert.equal((a.json as { api_host: string }).api_host, "https://loja.exemplo/web_api");
   assert.deepEqual((respostaDeCaptura("GET", "orders", "x").json as { Orders: unknown[] }).Orders, []);
   assert.deepEqual((respostaDeCaptura("GET", "orders/statuses", "x").json as { OrderStatuses: unknown[] }).OrderStatuses, []);
+});
+
+test("callback: só localhost e a API do PDVNet", () => {
+  assert.ok(callbackPermitido("http://localhost:9000/cb"));
+  assert.ok(callbackPermitido("https://pdvempresaapi.pdvnet.com.br/api/IntegracaoAutorizacoes/TrayCommerce"));
+  assert.equal(callbackPermitido("http://pdvempresaapi.pdvnet.com.br/api/x"), null); // sem https
+  assert.equal(callbackPermitido("https://pdvempresaapi.pdvnet.com.br.evil.com/api/x"), null);
+  assert.equal(callbackPermitido("https://pdvempresaapi.pdvnet.com.br/outra"), null);
+  assert.equal(callbackPermitido("https://evil.com/api/x"), null);
+  assert.equal(callbackPermitido(null), null);
 });

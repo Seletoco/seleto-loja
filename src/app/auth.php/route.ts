@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
-import { capturaLigada, registrar } from "@/lib/tray-captura";
+import { callbackPermitido, capturaLigada, registrar } from "@/lib/tray-captura";
 
 export const dynamic = "force-dynamic";
 
-/** Passo "Solicitar autorização de integração": só devolve o código de captura para um endereço local (o PDVNet escuta em localhost). */
+/** Passo "Solicitar autorização de integração": devolve o código de captura para o callback do PDVNet (ou localhost), como a Tray faz. */
 export async function GET(req: Request) {
   if (!capturaLigada()) return new NextResponse(null, { status: 404 });
   await registrar(req, "/auth.php");
   const url = new URL(req.url);
   const origem = url.origin;
-  let destino: URL | null = null;
-  try {
-    const cb = new URL(url.searchParams.get("callback") ?? "");
-    if (["localhost", "127.0.0.1"].includes(cb.hostname)) destino = cb; // nunca redireciona para outro site
-  } catch {
-    /* sem callback válido */
-  }
+  const destino = callbackPermitido(url.searchParams.get("callback")); // nunca redireciona para outro site
   if (destino) {
     destino.searchParams.set("code", "captura");
     destino.searchParams.set("api_address", `${origem}/web_api`);
