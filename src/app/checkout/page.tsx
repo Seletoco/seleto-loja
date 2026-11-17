@@ -224,7 +224,7 @@ export default function Checkout() {
       const r = await post("/api/pedidos", {
         itens: itens.map((i) => ({ ref: i.ref, tamanho: i.tamanho, quantidade: i.quantidade })),
         cliente: { ...pedido.cliente, cpf: digitos(cpf) || null }, // o CPF vai só ao servidor (nota fiscal); não fica salvo neste navegador
-        entrega: entrega === "entrega_combinada" ? { ...pedido.entrega, enderecoDet: { cep: cepDigitos, logradouro: logradouro.trim(), numero: numeroEnd.trim(), complemento: complemento.trim(), bairro: bairro.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase() } } : pedido.entrega,
+        entrega: entrega === "entrega_combinada" ? { ...pedido.entrega, assinaturaFrete: opcaoEscolhida?.assinatura, enderecoDet: { cep: cepDigitos, logradouro: logradouro.trim(), numero: numeroEnd.trim(), complemento: complemento.trim(), bairro: bairro.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase() } } : pedido.entrega,
         frete: pedido.frete,
         cashback: pedido.cashback ?? null,
         pagamento: comPix ? "pix" : comCartao ? "cartao" : null,

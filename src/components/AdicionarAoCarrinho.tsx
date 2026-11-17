@@ -127,7 +127,7 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
           lojaId: Number(lojaId),
           pagamento: formaEfetiva === "loja" ? null : formaEfetiva,
           ...(receber === "casa"
-            ? { receber, cpf, endereco: { cep: cepDigitos, logradouro: rua.trim(), numero: numeroEnd.trim(), complemento: complemento.trim(), bairro: bairro.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase() }, servico: opcaoFrete!.nome, prazoDias: opcaoFrete!.prazoDias, frete: opcaoFrete!.valor, freteExemplo: opcaoFrete!.exemplo }
+            ? { receber, cpf, endereco: { cep: cepDigitos, logradouro: rua.trim(), numero: numeroEnd.trim(), complemento: complemento.trim(), bairro: bairro.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase() }, servico: opcaoFrete!.nome, prazoDias: opcaoFrete!.prazoDias, frete: opcaoFrete!.valor, freteExemplo: opcaoFrete!.exemplo, assinaturaFrete: opcaoFrete!.assinatura }
             : { receber }),
         }),
       });

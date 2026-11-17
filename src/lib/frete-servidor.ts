@@ -7,7 +7,9 @@ import { cepDeOrigem, correiosConfigurado, cotarNosCorreios } from "./correios";
 import { cepValido, embalagemDoPedido, estimativaDeExemplo, ufDoCep, type OpcaoFrete } from "./frete";
 import { cotarNoMelhorEnvio, melhorEnvioConfigurado } from "./melhor-envio";
 import type { PedidoValidado } from "./pedido-servidor";
-import { aplicarFreteCotado } from "./frete-conferencia";
+import { aplicarFreteAssinado } from "./frete-conferencia";
+import { assinarCotacao, lerCotacao, resumoDosItens, VALIDADE_DA_COTACAO_MS } from "./frete-assinatura";
+import { bancoLigado } from "./db";
 
 export interface RespostaFrete {
   cep: string;
@@ -22,8 +24,15 @@ export type ResultadoCotacao = { ok: true; resposta: RespostaFrete } | { ok: fal
 
 const qtd = (v: unknown) => Math.min(20, Math.max(1, Number(v) || 1));
 
+function segredoDoFrete(): string {
+  const s = process.env.LOJA_SESSAO_SECRET;
+  if (s && s.length >= 16) return s;
+  if (!bancoLigado()) return "somente-demonstracao-sem-banco";
+  throw new Error("LOJA_SESSAO_SECRET não configurada");
+}
+
 /** Cota o frete para um CEP e os itens (peso e caixa saem da categoria dos produtos, que o servidor consulta). */
-export async function cotarFrete(cepBruto: string, itens: { ref?: unknown; quantidade?: unknown }[]): Promise<ResultadoCotacao> {
+async function cotarSemAssinar(cepBruto: string, itens: { ref?: unknown; quantidade?: unknown }[]): Promise<ResultadoCotacao> {
   const cep = String(cepBruto ?? "").replace(/\D/g, "");
   if (!cepValido(cep)) return { ok: false, erro: "CEP inválido. Confira os 8 números.", status: 400 };
   const lista = Array.isArray(itens) ? itens.slice(0, 50) : [];
@@ -56,11 +65,24 @@ export async function cotarFrete(cepBruto: string, itens: { ref?: unknown; quant
   return exemplo("Valores de exemplo (frete real ainda não configurado). A loja confirma o frete antes de cobrar.");
 }
 
-/** Confere o frete de um pedido de entrega cotando de novo no servidor. Retirada passa direto. */
-export async function conferirFreteDoPedido(p: PedidoValidado): Promise<{ erro: string } | { pedido: PedidoValidado }> {
+/** Cota e ASSINA cada opção (CEP, itens, serviço, valor, prazo), com validade de 2 horas. */
+export async function cotarFrete(cepBruto: string, itens: { ref?: unknown; quantidade?: unknown }[]): Promise<ResultadoCotacao> {
+  const r = await cotarSemAssinar(cepBruto, itens);
+  if (!r.ok) return r;
+  const segredo = segredoDoFrete();
+  const resumo = resumoDosItens(Array.isArray(itens) ? itens.slice(0, 50) : []);
+  const exp = Date.now() + VALIDADE_DA_COTACAO_MS;
+  return {
+    ok: true,
+    resposta: {
+      ...r.resposta,
+      opcoes: r.resposta.opcoes.map((o) => ({ ...o, assinatura: assinarCotacao(segredo, { cep: r.resposta.cep, itens: resumo, nome: o.nome, valor: o.valor, prazoDias: o.prazoDias, exemplo: o.exemplo, exp }) })),
+    },
+  };
+}
+
+/** Confere o frete de um pedido de entrega pela assinatura da cotação (sem cotar de novo). Retirada passa direto. */
+export function conferirFreteDoPedido(p: PedidoValidado, assinatura: unknown): { erro: string } | { pedido: PedidoValidado } {
   if (p.entrega.tipo !== "entrega_combinada") return { pedido: p };
-  const cep = p.entrega.enderecoDet?.cep ?? "";
-  const c = await cotarFrete(cep, p.itens.map((i) => ({ ref: i.ref, quantidade: i.quantidade })));
-  if (!c.ok) return { erro: c.erro };
-  return aplicarFreteCotado(p, c.resposta.opcoes);
+  return aplicarFreteAssinado(p, lerCotacao(segredoDoFrete(), assinatura, Date.now()));
 }
