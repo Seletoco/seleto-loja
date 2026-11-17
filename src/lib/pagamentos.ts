@@ -4,7 +4,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
-import { configDaRede, consultarPixNaRede, criarPixNaRede, podeCobrar, referenciaDoPedido, type StatusPagamento } from "./rede";
+import { configDaRede, consultarPixNaRede, criarPixNaRede, devolverPixNaRede, podeCobrar, referenciaDoPedido, type StatusPagamento } from "./rede";
 
 /** Quanto tempo o QR Code Pix vale (minutos). Padrão 2 h; pode mudar com REDE_PIX_MINUTOS (15 a 1440). */
 export function minutosDoPix(env: Record<string, string | undefined> = process.env): number {
@@ -173,4 +173,19 @@ export async function ultimasCobrancas(numeros: number[]): Promise<Record<number
   } catch {
     return {};
   }
+}
+
+/** Devolve ao cliente o Pix pago de um pedido (ex.: faltou estoque). Só o admin chama. Marca a cobrança e o pedido. */
+export async function devolverPix(numero: number): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const banco = db();
+  const { rows } = await banco.query<Linha>(`${SELECT} WHERE d.numero = $1 AND p.status = 'pago' ORDER BY p.criado_em DESC LIMIT 1`, [numero]);
+  const l = rows[0];
+  if (!l || !l.tid) return { ok: false, erro: "Este pedido não tem Pix pago para devolver." };
+  const c = configDaRede();
+  if (c.ambiente !== l.ambiente) return { ok: false, erro: "As credenciais da Rede são de outro ambiente (sandbox/produção) que o deste Pix." };
+  const r = await devolverPixNaRede(c, l.tid, Math.round(Number(l.valor) * 100));
+  if (!r.ok) return { ok: false, erro: `A Rede não devolveu${r.codigo ? ` (código ${r.codigo})` : ""}: ${r.mensagem ?? "sem resposta"}` };
+  await banco.query(`UPDATE loja.pagamentos SET status = 'cancelado', retorno_codigo = $2, retorno_mensagem = $3, atualizado_em = now() WHERE id = $1`, [l.id, r.codigo, r.mensagem]);
+  await banco.query(`UPDATE loja.pedidos SET pagamento_status = 'estornado', status = 'cancelado', atualizado_em = now() WHERE id = $1`, [l.pedido_id]);
+  return { ok: true };
 }

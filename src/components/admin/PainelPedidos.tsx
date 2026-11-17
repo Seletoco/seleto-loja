@@ -87,7 +87,7 @@ export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: Pedido
   );
 }
 
-const ROTULO_PIX: Record<string, string> = { pendente: "Pix gerado, aguardando pagamento", pago: "Pix PAGO", expirado: "Pix vencido", cancelado: "Pix cancelado", erro: "Pix com erro" };
+const ROTULO_PIX: Record<string, string> = { pendente: "Pix gerado, aguardando pagamento", pago: "Pix PAGO", expirado: "Pix vencido", cancelado: "Pix cancelado ou devolvido", erro: "Pix com erro" };
 
 /** Cobrança Pix do pedido: gerar, mandar o link ao cliente e conferir na Rede. */
 function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLigado: boolean; aoMudar: (c: NonNullable<PedidoSalvo["cobranca"]>) => void }) {
@@ -129,6 +129,29 @@ function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLiga
         {!pago && pedido.status !== "cancelado" && pixLigado && (!c || c.status !== "pendente") ? (
           <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar("/api/admin/pagamentos/pix")}>
             {ocupado ? "Gerando…" : "Gerar Pix"}
+          </button>
+        ) : null}
+        {pago ? (
+          <button
+            className="btn-claro !px-3 !py-1.5 !text-xs"
+            disabled={ocupado}
+            onClick={async () => {
+              if (!confirm(`Devolver ${reais(c!.valor)} ao cliente pelo Pix e cancelar o pedido ${pedido.numero}? Não dá para desfazer.`)) return;
+              setOcupado(true);
+              setErro("");
+              try {
+                const r = await fetch("/api/admin/pagamentos/devolver", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero: pedido.numero }) });
+                const j = (await r.json()) as { ok?: boolean; erro?: string };
+                if (j.ok) aoMudar({ ...c!, status: "cancelado" });
+                else setErro(j.erro ?? "Não foi possível devolver.");
+              } catch {
+                setErro("Sem conexão.");
+              } finally {
+                setOcupado(false);
+              }
+            }}
+          >
+            {ocupado ? "Devolvendo…" : "Devolver Pix"}
           </button>
         ) : null}
         {c?.status === "pendente" ? (

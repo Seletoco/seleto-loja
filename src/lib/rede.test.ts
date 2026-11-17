@@ -89,3 +89,11 @@ test("Pix: aviso da Rede (webhook) dá o TID e os eventos", () => {
   assert.deepEqual(lerAvisoPix({ events: ["PV.REFUND_PIX"], data: { qrcode: "41412312010933570004" } }), { tid: "41412312010933570004", eventos: ["PV.REFUND_PIX"] });
   assert.deepEqual(lerAvisoPix({ data: { id: "'; drop table" } }), { tid: null, eventos: [] });
 });
+
+import { lerRespostaDevolucao } from "./rede";
+
+test("Pix: devolução só vale com o código 359 (manual)", () => {
+  assert.deepEqual(lerRespostaDevolucao({ refundDateTime: "2023-09-19T12:12:03-03:00", returnCode: "359", returnMessage: "Refund successful." }), { ok: true, codigo: "359", mensagem: "Refund successful." });
+  assert.equal(lerRespostaDevolucao({ returnCode: "3091", returnMessage: "Error" }).ok, false);
+  assert.equal(lerRespostaDevolucao(null).ok, false);
+});
