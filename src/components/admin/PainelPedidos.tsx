@@ -10,7 +10,7 @@ const CHAVE = "seleto-loja:pedidos";
 const STATUS = ["aguardando_pagamento", "pago", "em_separacao", "pronto_retirada", "enviado", "entregue", "cancelado"];
 
 /** `doBanco`: pedidos vindos de loja.pedidos (banco ligado). Sem ele, o painel mostra os pedidos de teste deste navegador. */
-export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: PedidoSalvo[]; pixLigado?: boolean }) {
+export function PainelPedidos({ doBanco, pixLigado = false, cartaoLigado = false }: { doBanco?: PedidoSalvo[]; pixLigado?: boolean; cartaoLigado?: boolean }) {
   const [pedidos, setPedidos] = useState<PedidoSalvo[]>(doBanco ?? []);
   const [aviso, setAviso] = useState("");
 
@@ -78,7 +78,7 @@ export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: Pedido
             </ul>
             {p.cashback ? <p className="text-promo">Cashback a confirmar e dar baixa: {reais(p.cashback.usado)} ({telefoneBonito(p.cashback.telefone)})</p> : null}
             <p className="font-bold">{reais(p.total)}</p>
-            {doBanco ? <BlocoPix pedido={p} pixLigado={pixLigado} aoMudar={(c) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, cobranca: c, status: c.status === "pago" && x.status === "aguardando_pagamento" ? "pago" : x.status } : x)))} /> : null}
+            {doBanco ? <BlocoPix pedido={p} pixLigado={pixLigado} cartaoLigado={cartaoLigado} aoMudar={(c) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, cobranca: c, status: c.status === "pago" && x.status === "aguardando_pagamento" ? "pago" : x.status } : x)))} /> : null}
           </article>
         ))}
         </div>
@@ -88,16 +88,17 @@ export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: Pedido
 }
 
 const ROTULO_PIX: Record<string, string> = { pendente: "Pix gerado, aguardando pagamento", pago: "Pix PAGO", expirado: "Pix vencido", cancelado: "Pix cancelado ou devolvido", erro: "Pix com erro" };
+const ROTULO_CARTAO: Record<string, string> = { pendente: "Link de cartão enviado, aguardando pagamento", pago: "Cartão PAGO", expirado: "Link de cartão vencido", cancelado: "Cartão cancelado ou devolvido", erro: "Cartão: pagamento NÃO confirmado, confira na Rede antes de cobrar de novo" };
 
 /** Cobrança Pix do pedido: gerar, mandar o link ao cliente e conferir na Rede. */
-function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLigado: boolean; aoMudar: (c: NonNullable<PedidoSalvo["cobranca"]>) => void }) {
+function BlocoPix({ pedido, pixLigado, cartaoLigado, aoMudar }: { pedido: PedidoSalvo; pixLigado: boolean; cartaoLigado: boolean; aoMudar: (c: NonNullable<PedidoSalvo["cobranca"]>) => void }) {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [copiado, setCopiado] = useState(false);
   const c = pedido.cobranca;
   const link = c && typeof window !== "undefined" ? `${window.location.origin}/pagar/${c.token}` : "";
   const fone = pedido.cliente.telefone.replace(/\D/g, "");
-  const zap = link && fone.length >= 10 ? `https://wa.me/${fone.startsWith("55") ? fone : `55${fone}`}?text=${encodeURIComponent(`Olá, ${pedido.cliente.nome.split(" ")[0]}! Seu pedido ${pedido.numero} da Seleto está confirmado. Para pagar por Pix (${reais(pedido.total)}), use este link: ${link}`)}` : null;
+  const zap = link && fone.length >= 10 ? `https://wa.me/${fone.startsWith("55") ? fone : `55${fone}`}?text=${encodeURIComponent(`Olá, ${pedido.cliente.nome.split(" ")[0]}! Seu pedido ${pedido.numero} da Seleto está confirmado. Para pagar por ${pedido.cobranca?.metodo === "cartao" ? "cartão" : "Pix"} (${reais(pedido.total)}), use este link: ${link}`)}` : null;
 
   async function chamar(rota: string) {
     setOcupado(true);
@@ -114,21 +115,27 @@ function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLiga
     }
   }
 
-  if (!c && !pixLigado) return null;
+  if (!c && !pixLigado && !cartaoLigado) return null;
+  const ehCartao = c?.metodo === "cartao";
   const pago = c?.status === "pago";
   return (
     <div className="space-y-2 border-t border-borda pt-2">
       {c ? (
         <p className={`text-xs font-bold ${pago ? "text-ok" : "text-fraco"}`}>
-          {ROTULO_PIX[c.status] ?? c.status}
+          {(ehCartao ? ROTULO_CARTAO : ROTULO_PIX)[c.status] ?? c.status}
           {c.ambiente === "sandbox" ? " (teste)" : ""}
         </p>
       ) : null}
       {erro ? <p className="text-xs text-promo">{erro}</p> : null}
       <div className="flex flex-wrap gap-2">
-        {!pago && pedido.status !== "cancelado" && pixLigado && (!c || c.status !== "pendente") ? (
+        {!pago && pedido.status !== "cancelado" && pixLigado && (!c || c.status !== "pendente" || ehCartao) ? (
           <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar("/api/admin/pagamentos/pix")}>
             {ocupado ? "Gerando…" : "Gerar Pix"}
+          </button>
+        ) : null}
+        {!pago && pedido.status !== "cancelado" && cartaoLigado && (!c || c.status !== "pendente" || !ehCartao) && c?.status !== "erro" ? (
+          <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar("/api/admin/pagamentos/cartao")}>
+            {ocupado ? "Gerando…" : "Gerar link de cartão"}
           </button>
         ) : null}
         {pago ? (
@@ -136,7 +143,7 @@ function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLiga
             className="btn-claro !px-3 !py-1.5 !text-xs"
             disabled={ocupado}
             onClick={async () => {
-              if (!confirm(`Devolver ${reais(c!.valor)} ao cliente pelo Pix e cancelar o pedido ${pedido.numero}? Não dá para desfazer.`)) return;
+              if (!confirm(`Devolver ${reais(c!.valor)} ao cliente ${ehCartao ? "no cartão" : "pelo Pix"} e cancelar o pedido ${pedido.numero}? Não dá para desfazer.`)) return;
               setOcupado(true);
               setErro("");
               try {
@@ -151,7 +158,7 @@ function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLiga
               }
             }}
           >
-            {ocupado ? "Devolvendo…" : "Devolver Pix"}
+            {ocupado ? "Devolvendo…" : ehCartao ? "Devolver no cartão" : "Devolver Pix"}
           </button>
         ) : null}
         {c?.status === "pendente" ? (

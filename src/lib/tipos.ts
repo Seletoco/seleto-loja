@@ -35,5 +35,5 @@ export interface PedidoSalvo {
   total: number;
   status: string;
   /** Última cobrança online (Pix pela Rede), se houver. */
-  cobranca?: { token: string; status: string; valor: number; expiraEm: string | null; ambiente: string; pagoEm: string | null };
+  cobranca?: { token: string; metodo?: "pix" | "cartao"; status: string; valor: number; expiraEm: string | null; ambiente: string; pagoEm: string | null };
 }

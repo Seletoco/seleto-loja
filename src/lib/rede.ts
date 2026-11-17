@@ -258,3 +258,126 @@ export async function devolverPixNaRede(c: ConfigRede, tid: string, valorCentavo
   if (!lido.ok && !lido.mensagem) lido.mensagem = r.status ? mensagemDeErro(r.status, r.texto) : r.texto;
   return { ...lido, http: r.status };
 }
+
+// ---------------------------------------------------------------- cartão de crédito (checkout transparente)
+// O cartão passa pelo nosso servidor só no instante da cobrança: nunca é gravado, registrado em log nem devolvido ao navegador.
+
+export interface EntradaCartao {
+  numero?: unknown;
+  nome?: unknown;
+  validade?: unknown;
+  cvv?: unknown;
+  parcelas?: unknown;
+}
+
+export interface DadosCartao {
+  numero: string;
+  nome: string;
+  mes: number;
+  ano: number;
+  cvv: string;
+  parcelas: number;
+}
+
+/** Confere o número do cartão pelo dígito verificador (Luhn). */
+export function luhnOk(numero: string): boolean {
+  if (!/^[0-9]{13,19}$/.test(numero)) return false;
+  let soma = 0;
+  for (let i = 0; i < numero.length; i++) {
+    let d = Number(numero[numero.length - 1 - i]);
+    if (i % 2 === 1) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    soma += d;
+  }
+  return soma % 10 === 0;
+}
+
+/** Quantas parcelas sem juros a loja oferece para este valor. CARTAO_PARCELAS_MAX (1 a 12, padrão 1 = só à vista) e CARTAO_PARCELA_MINIMA (padrão R$ 50). */
+export function parcelasMaximas(valor: number, env: Env = process.env): number {
+  const max = Math.min(12, Math.max(1, Math.round(Number(env.CARTAO_PARCELAS_MAX) || 1)));
+  const minima = Number(env.CARTAO_PARCELA_MINIMA) > 0 ? Number(env.CARTAO_PARCELA_MINIMA) : 50;
+  return Math.max(1, Math.min(max, Math.floor(valor / minima)));
+}
+
+/** Valida o que o cliente digitou. Mensagens em português, sem repetir o dado digitado. */
+export function validarCartao(e: EntradaCartao, valor: number, agora = new Date(), env: Env = process.env): { ok: true; dados: DadosCartao } | { ok: false; erro: string } {
+  const numero = String(e.numero ?? "").replace(/[\s-]/g, "");
+  if (!luhnOk(numero)) return { ok: false, erro: "Confira o número do cartão." };
+  const nome = String(e.nome ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase()
+    .slice(0, 30);
+  if (nome.length < 2) return { ok: false, erro: "Informe o nome como está no cartão." };
+  const m = /^\s*(\d{1,2})\s*\/\s*(\d{2}|\d{4})\s*$/.exec(String(e.validade ?? ""));
+  if (!m) return { ok: false, erro: "Informe a validade no formato MM/AA." };
+  const mes = Number(m[1]);
+  const ano = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
+  if (mes < 1 || mes > 12) return { ok: false, erro: "Mês de validade inválido." };
+  const fim = new Date(ano, mes, 1).getTime(); // 1º dia do mês seguinte = fim da validade
+  if (fim <= agora.getTime() || ano > agora.getFullYear() + 20) return { ok: false, erro: "Cartão vencido ou validade inválida." };
+  const cvv = String(e.cvv ?? "").trim();
+  if (!/^[0-9]{3,4}$/.test(cvv)) return { ok: false, erro: "Confira o código de segurança (CVV)." };
+  const parcelas = Math.round(Number(e.parcelas ?? 1));
+  if (!Number.isInteger(parcelas) || parcelas < 1 || parcelas > parcelasMaximas(valor, env)) return { ok: false, erro: "Número de parcelas inválido." };
+  return { ok: true, dados: { numero, nome, mes, ano, cvv, parcelas } };
+}
+
+/** Corpo da autorização com captura automática (manual: "Transaction Authorization"). Parcelas só entram de 2 em diante. */
+export function corpoCartao(referencia: string, valorCentavos: number, d: DadosCartao, softDescriptor?: string) {
+  return {
+    capture: true,
+    kind: "credit",
+    reference: referencia,
+    amount: valorCentavos,
+    ...(d.parcelas >= 2 ? { installments: d.parcelas } : {}),
+    cardholderName: d.nome,
+    cardNumber: d.numero,
+    expirationMonth: d.mes,
+    expirationYear: d.ano,
+    securityCode: d.cvv,
+    ...(softDescriptor ? { softDescriptor: softDescriptor.replace(/[^A-Za-z0-9 ]/g, "").slice(0, 18) } : {}),
+  };
+}
+
+export interface RespostaCartao {
+  aprovado: boolean;
+  tid: string | null;
+  codigo: string | null;
+  mensagem: string | null;
+  /** Ex.: "Mastercard final 0007" (só para o painel; nunca o número inteiro). */
+  resumo: string | null;
+}
+
+/** Lê a resposta da autorização. Aprovado = returnCode "00" com tid. */
+export function lerRespostaCartao(json: unknown): RespostaCartao {
+  const j = (json ?? {}) as Record<string, unknown>;
+  const codigo = j.returnCode != null ? String(j.returnCode) : null;
+  const tid = typeof j.tid === "string" && j.tid ? j.tid : null;
+  const marca = typeof (j.brand as { name?: unknown } | undefined)?.name === "string" ? String((j.brand as { name: string }).name).replace(/\.$/, "") : null;
+  const final = typeof j.last4 === "string" && /^[0-9]{4}$/.test(j.last4) ? j.last4 : null;
+  return {
+    aprovado: codigo === "00" && Boolean(tid),
+    tid,
+    codigo,
+    mensagem: j.returnMessage != null ? String(j.returnMessage).slice(0, 200) : null,
+    resumo: [marca, final && `final ${final}`].filter(Boolean).join(" ") || null,
+  };
+}
+
+/** Pede a autorização do cartão à Rede. `semResposta` = não sabemos se cobrou (não tentar de novo sozinho). */
+export async function cobrarCartaoNaRede(c: ConfigRede, referencia: string, valorCentavos: number, d: DadosCartao, softDescriptor?: string): Promise<RespostaCartao & { http: number; semResposta: boolean; semAcesso: boolean }> {
+  // Sem token a cobrança nem sai: é seguro tentar de novo depois (não confundir com "sem resposta").
+  const t = await obterTokenRede(c);
+  if (!t.ok) return { aprovado: false, tid: null, codigo: null, mensagem: t.erro, resumo: null, http: 0, semResposta: false, semAcesso: true };
+  const r = await chamarRede(c, TRANSACOES_DA_REDE[c.ambiente], { method: "POST", body: JSON.stringify(corpoCartao(referencia, valorCentavos, d, softDescriptor)) });
+  const lido = lerRespostaCartao(r.json);
+  const semResposta = r.status === 0 || r.status >= 500 || (r.status >= 200 && r.status < 300 && r.json == null);
+  if (!lido.aprovado && !lido.mensagem) lido.mensagem = r.status ? mensagemDeErro(r.status, "") : "Sem resposta da Rede.";
+  return { ...lido, http: r.status, semResposta, semAcesso: false };
+}
