@@ -10,6 +10,7 @@ import { sessaoAtual } from "@/lib/sessao";
 import { EXIGIR_LOGIN } from "@/lib/modo";
 import { configDaRede, podeCobrar } from "@/lib/rede";
 import { cartaoAtivo, gerarCartao, gerarPix } from "@/lib/pagamentos";
+import { conferirFreteDoPedido } from "@/lib/frete-servidor";
 
 const hojeBr = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
 
@@ -32,7 +33,10 @@ export async function POST(req: Request) {
   const regras = await regrasCashback();
   const v = validarPedido(corpo, produtoPorRef, regras.tetoUsoPct);
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
-  let p = v.pedido;
+  // Frete conferido no servidor: cota de novo e recusa qualquer valor diferente do cotado (o navegador não decide o frete).
+  const fr = await conferirFreteDoPedido(v.pedido);
+  if ("erro" in fr) return NextResponse.json({ erro: fr.erro }, { status: 400 });
+  let p = fr.pedido;
   // Conta ligada ao cadastro: o CPF informado tem que ser o da própria conta (ninguém faz pedido no CPF de outra pessoa).
   if (p.cliente.cpf && s?.cpfHash && hashCpf(p.cliente.cpf) !== s.cpfHash) return NextResponse.json({ erro: "O CPF informado não é o da sua conta. Confira o número." }, { status: 400 });
   // Pix na hora: o cliente paga já no checkout (a cobrança sai do total que o servidor calculou).
