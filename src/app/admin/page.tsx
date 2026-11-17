@@ -5,6 +5,8 @@ import { bancoLigado } from "@/lib/db";
 import { listarPedidos } from "@/lib/pedidos-admin";
 import { garantirCatalogo, statusDoCatalogo } from "@/lib/catalogo";
 import { PainelPedidos } from "./painel";
+import { CartaoRede } from "./rede";
+import { configDaRede, resumoDaConfig } from "@/lib/rede";
 
 // Painel depende do login (cookie) e do banco: nunca pré-gerar.
 export const dynamic = "force-dynamic";
@@ -43,6 +45,7 @@ export default async function Admin() {
         </p>
         {cat.erro ? <p className="mt-1 text-promo">Último aviso: {cat.erro}</p> : null}
       </section>
+      <CartaoRede resumo={resumoDaConfig(configDaRede())} />
       <PainelPedidos doBanco={doBanco} />
     </div>
   );
