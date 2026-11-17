@@ -33,8 +33,8 @@ export async function POST(req: Request) {
   const regras = await regrasCashback();
   const v = validarPedido(corpo, produtoPorRef, regras.tetoUsoPct);
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
-  // Frete conferido no servidor: cota de novo e recusa qualquer valor diferente do cotado (o navegador não decide o frete).
-  const fr = await conferirFreteDoPedido(v.pedido);
+  // Frete conferido no servidor pela assinatura da cotação: o navegador não decide quanto paga de frete.
+  const fr = conferirFreteDoPedido(v.pedido, (corpo as { entrega?: { assinaturaFrete?: unknown } }).entrega?.assinaturaFrete);
   if ("erro" in fr) return NextResponse.json({ erro: fr.erro }, { status: 400 });
   let p = fr.pedido;
   // Conta ligada ao cadastro: o CPF informado tem que ser o da própria conta (ninguém faz pedido no CPF de outra pessoa).

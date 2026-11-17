@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   if (!bancoLigado()) return NextResponse.json({ erro: "A compra com 1 clique fica disponível quando a loja estiver ligada ao banco." }, { status: 503 });
   const s = await sessaoAtual();
   if (!s?.cpfHash) return NextResponse.json({ erro: "Entre na sua conta e ligue ao seu cadastro para comprar com 1 clique.", precisaLogin: true }, { status: 401 });
-  let c: { ref?: unknown; tamanho?: unknown; lojaId?: unknown; pagamento?: unknown; receber?: unknown; cpf?: unknown; endereco?: Record<string, unknown>; servico?: unknown; prazoDias?: unknown; frete?: unknown; freteExemplo?: unknown };
+  let c: { ref?: unknown; tamanho?: unknown; lojaId?: unknown; pagamento?: unknown; receber?: unknown; cpf?: unknown; endereco?: Record<string, unknown>; servico?: unknown; prazoDias?: unknown; frete?: unknown; freteExemplo?: unknown; assinaturaFrete?: unknown };
   try {
     c = await req.json();
   } catch {
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     regras.tetoUsoPct,
   );
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
-  const fr = await conferirFreteDoPedido(v.pedido); // frete conferido no servidor
+  const fr = conferirFreteDoPedido(v.pedido, c.assinaturaFrete); // frete conferido pela assinatura da cotação
   if ("erro" in fr) return NextResponse.json({ erro: fr.erro }, { status: 400 });
   const pedidoFinal = fr.pedido;
 

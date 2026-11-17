@@ -92,6 +92,8 @@ export interface OpcaoFrete {
   nome: string;
   valor: number;
   prazoDias: number; // dias úteis
+  /** Assinatura da cotação (o pedido só aceita o frete que o servidor assinou). */
+  assinatura?: string;
   /** true = estimativa de exemplo (sem as credenciais de frete). */
   exemplo: boolean;
 }
