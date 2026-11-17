@@ -409,11 +409,22 @@ export default function Checkout() {
 
       <aside className="h-fit space-y-3 rounded-lg border border-borda bg-painel p-4 lg:sticky lg:top-28">
         <h2 className="font-bold">Resumo</h2>
-        <ul className="space-y-1 text-sm">
+        <ul className="space-y-3 text-sm">
           {itens.map((i) => (
-            <li key={i.ref + i.tamanho} className="flex justify-between gap-2">
-              <span className="line-clamp-1">{i.quantidade}× {i.nome} ({i.tamanho})</span>
-              <span>{reais(i.preco * i.quantidade)}</span>
+            <li key={i.ref + i.tamanho} className="flex gap-3">
+              <div className="relative size-16 shrink-0 overflow-hidden rounded bg-tenue">
+                {i.foto ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- fotos vêm do catálogo
+                  <img src={i.foto} alt={i.nome} className="size-full object-contain" />
+                ) : null}
+                <span className="absolute right-0 top-0 rounded-bl bg-texto px-1.5 text-[11px] font-bold text-white">{i.quantidade}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 font-medium leading-snug">{i.nome}</p>
+                <p className="text-xs text-fraco">{[i.cor, i.tamanho && `Tam. ${i.tamanho}`].filter(Boolean).join(" · ")}</p>
+                <p className="text-xs text-fraco">{i.quantidade} × {reais(i.preco)}</p>
+              </div>
+              <span className="shrink-0 font-bold">{reais(i.preco * i.quantidade)}</span>
             </li>
           ))}
         </ul>
