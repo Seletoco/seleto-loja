@@ -7,7 +7,12 @@
  *   produção https://api.userede.com.br/redelabs
  * Token: POST {base}/oauth2/token (confirmado: sem credencial responde 401 nos dois).
  *
- * Segredos só nas variáveis de ambiente (REDE_CLIENT_ID, REDE_CLIENT_SECRET). Nada de segredo ou token sai daqui
+ * Credenciais (manual da Rede, "Step-by-step OAuth 2.0"): no Portal Use Rede, o PV vira o clientId e a Chave de Integração vira
+ * o clientSecret. Token vale 24 min; nas APIs vai como "Authorization: Bearer {access_token}".
+ * Transações (próxima etapa): sandbox https://sandbox-erede.useredecloud.com.br/v2/transactions,
+ * produção https://api.userede.com.br/erede/v2/transactions.
+ *
+ * Segredos só nas variáveis de ambiente (REDE_PV ou REDE_CLIENT_ID; REDE_CLIENT_SECRET = Chave de Integração). Nada de segredo ou token sai daqui
  * para o navegador nem para o log.
  */
 
@@ -35,7 +40,8 @@ export function configDaRede(env: Env = process.env): ConfigRede {
   return {
     ambiente: amb === "producao" || amb === "produção" ? "producao" : "sandbox",
     ativo: env.REDE_ATIVO === "1",
-    clientId: limpo(env.REDE_CLIENT_ID),
+    clientId: limpo(env.REDE_CLIENT_ID) ?? limpo(env.REDE_PV), // o PV É o clientId
+
     clientSecret: limpo(env.REDE_CLIENT_SECRET),
     pv: limpo(env.REDE_PV),
   };
@@ -95,7 +101,7 @@ export type ResultadoToken = { ok: true; token: TokenRede } | { ok: false; erro:
 
 /** Pede (ou reaproveita) o token. Timeout de 10 s. */
 export async function obterTokenRede(c: ConfigRede = configDaRede(), forcar = false): Promise<ResultadoToken> {
-  if (!c.clientId || !c.clientSecret) return { ok: false, erro: "Faltam REDE_CLIENT_ID e/ou REDE_CLIENT_SECRET na Vercel." };
+  if (!c.clientId || !c.clientSecret) return { ok: false, erro: "Faltam REDE_PV (o PV) e/ou REDE_CLIENT_SECRET (a Chave de Integração) na Vercel." };
   const chave = `${c.ambiente}:${c.clientId}`;
   const guardado = cache._tokenRede;
   if (!forcar && guardado && guardado.chave === chave && Date.now() < guardado.expiraEmMs) return { ok: true, token: guardado };

@@ -36,3 +36,9 @@ test("mensagens de erro não repetem nada sensível e explicam o 401", () => {
   assert.match(mensagemDeErro(0, ""), /Sem resposta/);
   assert.equal(mensagemDeErro(500, "a".repeat(500)).length < 200, true);
 });
+
+test("o PV vale como clientId quando REDE_CLIENT_ID não existe", () => {
+  assert.equal(configDaRede({ REDE_PV: "12345", REDE_CLIENT_SECRET: "k" }).clientId, "12345");
+  assert.equal(configDaRede({ REDE_PV: "12345", REDE_CLIENT_ID: "999", REDE_CLIENT_SECRET: "k" }).clientId, "999");
+  assert.equal(resumoDaConfig(configDaRede({ REDE_PV: "12345", REDE_CLIENT_SECRET: "k" })).pronto, true);
+});

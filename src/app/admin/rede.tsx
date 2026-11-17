@@ -35,14 +35,14 @@ export function CartaoRede({ resumo }: { resumo: Resumo }) {
         {" · "}Cobrança no site: <b className="text-texto">{resumo.ativo ? "ligada" : "desligada"}</b>
       </p>
       <ul className="mt-2 grid gap-0.5 text-xs text-fraco sm:grid-cols-3">
-        {item(resumo.temClientId, "REDE_CLIENT_ID")}
-        {item(resumo.temClientSecret, "REDE_CLIENT_SECRET")}
-        {item(resumo.temPv, "REDE_PV")}
+        {item(resumo.temPv, "REDE_PV (o PV)")}
+        {item(resumo.temClientSecret, "REDE_CLIENT_SECRET (Chave de Integração)")}
+        {item(resumo.temClientId, "REDE_CLIENT_ID (opcional: igual ao PV)")}
       </ul>
       <button onClick={testar} disabled={!resumo.pronto || testando} className="btn-claro mt-3 !px-3 !py-2 !text-xs">
         {testando ? "Testando…" : "Testar conexão com a Rede"}
       </button>
-      {!resumo.pronto ? <p className="mt-2 text-xs text-fraco">Coloque REDE_CLIENT_ID e REDE_CLIENT_SECRET na Vercel (tipo Secret) e faça redeploy.</p> : null}
+      {!resumo.pronto ? <p className="mt-2 text-xs text-fraco">Coloque REDE_PV (o número do estabelecimento) e REDE_CLIENT_SECRET (a Chave de Integração do Portal Use Rede) na Vercel, como Secret, e faça redeploy.</p> : null}
       {estado ? <p className={`mt-2 text-xs ${estado.ok ? "text-ok" : "text-promo"}`}>{estado.texto}</p> : null}
     </section>
   );
