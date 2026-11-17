@@ -64,9 +64,10 @@ export async function POST(req: Request) {
     let avisoPix: string | null = null;
     if (querPix || querCartao) {
       // O pedido já está gravado; se a cobrança falhar, ele continua valendo e a loja combina o pagamento.
-      const r = await (querCartao ? gerarCartao(numero) : gerarPix(numero)).catch(() => ({ ok: false as const, erro: "falha" }));
+      const r = await (querCartao ? gerarCartao(numero) : gerarPix(numero)).catch((e) => ({ ok: false as const, erro: `exceção: ${e instanceof Error ? e.message : "erro"}` }));
       if (r.ok) pagarUrl = `/pagar/${r.cobranca.token}`;
-      else avisoPix = `Seu pedido foi registrado, mas não conseguimos preparar o pagamento por ${querCartao ? "cartão" : "Pix"} agora. A loja vai chamar você no WhatsApp para combinar o pagamento.`;
+      else console.error(`[pagamento] pedido ${numero}: não gerou ${querCartao ? "cartão" : "Pix"}:`, r.erro.slice(0, 300)); // motivo nos logs (sem dados pessoais)
+      if (!r.ok) avisoPix = `Seu pedido foi registrado, mas não conseguimos preparar o pagamento por ${querCartao ? "cartão" : "Pix"} agora. A loja vai chamar você no WhatsApp para combinar o pagamento.`;
     }
     return NextResponse.json({ numero, subtotal: p.subtotal, frete: p.frete, cashbackUsado: p.cashbackUsado, total: p.total, pagamento: pagarUrl ? (querCartao ? "cartao" : "pix") : p.pagamentoMetodo, pagarUrl, avisoPix });
   } catch (e) {
