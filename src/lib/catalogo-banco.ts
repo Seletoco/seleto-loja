@@ -1,5 +1,6 @@
 /** Lê o catálogo do banco (views `loja.v_produtos` e `loja.v_variacoes`, só leitura) e monta os produtos da vitrine. */
 import { db } from "./db";
+import { mapaDeVendidos } from "./mais-vendidos";
 import { montarCatalogo, type LinhaProduto, type LinhaVariacao } from "./catalogo-montar";
 import type { Produto } from "./tipos";
 
@@ -27,4 +28,14 @@ export async function lerCatalogoDoBanco(antigo: Map<string, Produto>, exigirFot
   }
 
   return montarCatalogo(prods.rows, vars.rows, fotos, novos, antigo, exigirFoto);
+}
+
+/** Ranking de vendas (migration 014). Sem a view, devolve vazio e o site esconde a aba "Mais vendidos". */
+export async function lerMaisVendidos(): Promise<Map<string, number>> {
+  try {
+    const { rows } = await db().query<{ ref: string; vendidos: number }>(`SELECT ref, vendidos_60d AS vendidos FROM loja.v_mais_vendidos`);
+    return mapaDeVendidos(rows);
+  } catch {
+    return new Map();
+  }
 }

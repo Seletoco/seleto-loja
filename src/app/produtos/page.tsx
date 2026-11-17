@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ProdutoCard } from "@/components/ProdutoCard";
 import { ehGenero } from "@/lib/genero";
 import { LINK_CLUBE_FARM } from "@/lib/vantagens";
-import { buscar, categorias, garantirCatalogo, marcas, tamanhosDisponiveis, type Ordem } from "@/lib/catalogo";
+import { buscar, categorias, garantirCatalogo, marcas, tamanhosDisponiveis, temMaisVendidos, type Ordem } from "@/lib/catalogo";
 
 export const metadata: Metadata = { title: "Todos os produtos", alternates: { canonical: "/produtos" } };
 
@@ -12,6 +12,7 @@ type Q = { q?: string; categoria?: string; marca?: string; tamanho?: string; pro
 
 const ORDENS: [string, string][] = [
   ["relevancia", "Relevância"],
+  ["vendidos", "Mais vendidos"],
   ["novo", "Novidades"],
   ["promo", "Maior desconto"],
   ["menor", "Menor preço"],
@@ -21,7 +22,8 @@ const ORDENS: [string, string][] = [
 export default async function Produtos({ searchParams }: { searchParams: Promise<Q> }) {
   const q = await searchParams;
   await garantirCatalogo();
-  const ordem = (["menor", "maior", "promo", "novo"].includes(q.ordem ?? "") ? q.ordem : "relevancia") as Ordem;
+  const comRanking = temMaisVendidos();
+  const ordem = (["menor", "maior", "promo", "novo", ...(comRanking ? ["vendidos"] : [])].includes(q.ordem ?? "") ? q.ordem : "relevancia") as Ordem;
   const lista = buscar({ q: q.q, categoria: q.categoria, marca: q.marca, tamanho: q.tamanho, promo: q.promo === "1", genero: ehGenero(q.genero) ? q.genero : undefined, ordem });
   const pagina = Math.max(1, Number(q.pagina) || 1);
   const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
@@ -35,7 +37,7 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
   };
   const genero = ehGenero(q.genero) ? q.genero : undefined;
   const nomeGenero = genero === "feminino" ? "Feminino" : genero === "masculino" ? "Masculino" : undefined;
-  const titulo = (nomeGenero ? `${nomeGenero}${q.categoria ? ` · ${q.categoria}` : ""}` : null) ?? q.categoria ?? q.marca ?? (q.promo === "1" ? "Ofertas" : q.q ? `“${q.q}”` : "Todos os produtos");
+  const titulo = (ordem === "vendidos" && !nomeGenero && !q.categoria && !q.marca ? "Mais vendidos" : null) ?? (nomeGenero ? `${nomeGenero}${q.categoria ? ` · ${q.categoria}` : ""}` : null) ?? q.categoria ?? q.marca ?? (q.promo === "1" ? "Ofertas" : q.q ? `“${q.q}”` : "Todos os produtos");
   const filtrosAtivos = [nomeGenero, q.categoria, q.marca, q.tamanho && `Tam. ${q.tamanho}`, q.promo === "1" && "Em promoção"].filter(Boolean) as string[];
 
   const mostrarFarm = [q.categoria, q.marca].some((v) => v?.toLowerCase() === "farm") || genero === "feminino";
@@ -51,6 +53,18 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
           <span className="btn !px-4 !py-2 !text-xs">Entrar no clube</span>
         </a>
       ) : null}
+      <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-borda px-4" aria-label="Coleções">
+        {([
+          ["Todos os produtos", href({ ordem: undefined, promo: undefined }), ordem !== "vendidos" && ordem !== "novo" && q.promo !== "1"],
+          ...(comRanking ? [["Mais vendidos", href({ ordem: "vendidos", promo: undefined }), ordem === "vendidos"]] : []),
+          ["Novidades", href({ ordem: "novo", promo: undefined }), ordem === "novo" && q.promo !== "1"],
+          ["Ofertas", href({ ordem: "promo", promo: "1" }), q.promo === "1"],
+        ] as [string, string, boolean][]).map(([rotulo, destino, ativa]) => (
+          <Link key={rotulo} href={destino} className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-black uppercase tracking-wide ${ativa ? "border-texto" : "border-transparent text-fraco hover:text-texto"}`}>
+            {rotulo}
+          </Link>
+        ))}
+      </nav>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="titulao text-4xl sm:text-6xl">{titulo}</h1>
@@ -58,7 +72,7 @@ export default async function Produtos({ searchParams }: { searchParams: Promise
           {nomeGenero ? <p className="mt-1 max-w-xl text-xs text-fraco">Estamos identificando o gênero de cada produto: esta lista mostra os que já sabemos e pode estar incompleta. Veja também <Link href="/produtos" className="font-bold underline">todos os produtos</Link>.</p> : null}
         </div>
         <div className="flex flex-wrap gap-1.5 text-xs">
-          {ORDENS.map(([v, r]) => (
+          {ORDENS.filter(([v]) => v !== "vendidos" || comRanking).map(([v, r]) => (
             <Link key={v} href={href({ ordem: v === "relevancia" ? undefined : v })} className={`border px-3 py-2 font-bold ${ordem === v ? "border-texto bg-texto text-white" : "border-borda hover:border-texto"}`}>
               {r}
             </Link>

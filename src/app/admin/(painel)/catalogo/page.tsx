@@ -12,10 +12,11 @@ export default async function Catalogo() {
   const hora = cat.atualizadoEm ? new Date(cat.atualizadoEm).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" }) : null;
   return (
     <div className="space-y-8">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Numero rotulo="No site" valor={String(cat.produtos)} detalhe={`fonte: ${cat.fonte === "banco" ? "banco, atualiza a cada 5 min" : "arquivo antigo"}${hora ? ` · lido às ${hora}` : ""}`} destaque />
         <Numero rotulo="Em promoção" valor={String(promo)} />
         <Numero rotulo="Novidades" valor={String(novos)} />
+        <Numero rotulo="Mais vendidos" valor={cat.maisVendidos ? String(cat.maisVendidos) : "—"} detalhe={cat.maisVendidos ? "produtos com venda nas lojas (60 dias)" : "falta aplicar a migration 014 (ranking de vendas)"} />
         <Numero rotulo="Vendáveis sem foto" valor={semFoto ? String(semFoto.total) : "—"} detalhe={semFoto ? `de ${semFoto.vendaveis} vendáveis no sistema (não aparecem no site)` : undefined} />
       </div>
       {cat.erro ? <p className="border border-promo/40 bg-white p-3 text-sm text-promo">Último aviso do catálogo: {cat.erro}</p> : null}

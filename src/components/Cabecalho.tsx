@@ -51,7 +51,7 @@ export function Cabecalho({ menu, logos = {}, teste, blackFriday = false }: { me
       .filter((g) => g.itens.length > 0);
   const paineis: Record<string, React.ReactNode> = {
     novidades: (
-      <Colunas titulo="Novidades" itens={[["Todos os lançamentos", "/produtos?ordem=novo"], ["Tênis novos", `/produtos?categoria=${k("Tênis")}&ordem=novo`], ...menu.roupas.map((c): string[] => [`Novidades em ${c}`, `/produtos?categoria=${k(c)}&ordem=novo`])]} menu={menu} produtos={menu.novos} />
+      <Colunas titulo="Novidades" itens={[...(menu.temMaisVendidos ? [["Mais vendidos", "/produtos?ordem=vendidos"]] : []), ["Todos os lançamentos", "/produtos?ordem=novo"], ["Tênis novos", `/produtos?categoria=${k("Tênis")}&ordem=novo`], ...menu.roupas.map((c): string[] => [`Novidades em ${c}`, `/produtos?categoria=${k(c)}&ordem=novo`])]} menu={menu} produtos={menu.novos} />
     ),
     tenis: (
       <Colunas titulo="Tênis" itens={[["Todos os tênis", `/produtos?categoria=${k("Tênis")}`]]} menu={menu} produtos={menu.tenis} generos={porGenero(["Tênis"])} marcasLogo={{ nomes: menu.marcasTenis, logos, href: (m) => `/produtos?categoria=${k("Tênis")}&marca=${k(m)}` }} />
