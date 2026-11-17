@@ -7,6 +7,18 @@
  */
 const SENSIVEL = /(secret|code|token|senha|password|authorization|key|chave)/i;
 
+/** Destinos aceitos para devolver o código de autorização: o computador local e a API do próprio PDVNet (visto nos logs de captura). Nada mais. */
+export function callbackPermitido(valor: string | null): URL | null {
+  try {
+    const u = new URL(valor ?? "");
+    if (["localhost", "127.0.0.1"].includes(u.hostname)) return u;
+    if (u.protocol === "https:" && u.hostname === "pdvempresaapi.pdvnet.com.br" && u.pathname.startsWith("/api/")) return u;
+  } catch {
+    /* sem callback válido */
+  }
+  return null;
+}
+
 export const capturaLigada = (env: Record<string, string | undefined> = process.env) => env.TRAY_CAPTURA === "1";
 
 export function ocultar(valor: unknown, profundidade = 0): unknown {
