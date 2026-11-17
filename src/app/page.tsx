@@ -8,7 +8,7 @@ import { LOJAS, LINK_AVALIACAO_GOOGLE, linkWhatsappGeral, telefoneGeral } from "
 import { jsonLd } from "@/lib/json-ld";
 import { NOME_SITE, SITE_URL } from "@/lib/site";
 import { clientesAtendidos } from "@/lib/vantagens";
-import { buscar, categorias, fotoDaCategoria, garantirCatalogo, maiorDesconto, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
+import { buscar, categorias, maisVendidos, fotoDaCategoria, garantirCatalogo, maiorDesconto, melhorOferta, novidades, promocoes, tenisEmOferta } from "@/lib/catalogo";
 
 export const revalidate = 300; // acompanha o cache do catálogo (5 min)
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -123,6 +123,12 @@ export default async function Home() {
             ))}
           </div>
         </Reveal>
+
+        {maisVendidos(12).length >= 4 ? (
+          <Reveal>
+            <Fileira titulo="Mais vendidos" href="/produtos?ordem=vendidos" produtos={maisVendidos(12)} />
+          </Reveal>
+        ) : null}
 
         <Reveal>
           <Fileira titulo="Em promoção" href="/produtos?promo=1&ordem=promo" produtos={promocoes(12)} />

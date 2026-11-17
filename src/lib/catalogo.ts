@@ -10,12 +10,14 @@
 import { generoDe, type Genero } from "./genero";
 import dados from "../../data/produtos.json";
 import { bancoLigado } from "./db";
-import { lerCatalogoDoBanco } from "./catalogo-banco";
+import { lerCatalogoDoBanco, lerMaisVendidos } from "./catalogo-banco";
+import { ordenarPorVendidos } from "./mais-vendidos";
 import type { Produto } from "./tipos";
 
 const ARQUIVO = dados as Produto[];
 const ARQUIVO_POR_REF = new Map(ARQUIVO.map((p) => [p.ref, p]));
 let TODOS: Produto[] = ARQUIVO;
+let VENDIDOS = new Map<string, number>(); // ref -> unidades vendidas nas lojas (60 dias); só a ordem aparece no site
 
 const VALIDADE_MS = 5 * 60_000; // o estoque do banco já atrasa horas; 5 minutos de cache não pesa
 const NOVA_TENTATIVA_MS = 30_000; // se a leitura falhar, usa o arquivo e tenta de novo em 30 s
@@ -47,9 +49,10 @@ export async function garantirCatalogo(): Promise<void> {
   tentouEm = agora;
   emCurso = (async () => {
     try {
-      const lista = await lerCatalogoDoBanco(ARQUIVO_POR_REF, process.env.CATALOGO_SEM_FOTO !== "1");
+      const [lista, vendidos] = await Promise.all([lerCatalogoDoBanco(ARQUIVO_POR_REF, process.env.CATALOGO_SEM_FOTO !== "1"), lerMaisVendidos()]);
       if (lista.length >= MINIMO_DE_PRODUTOS) {
         TODOS = lista;
+        VENDIDOS = vendidos;
         fonte = "banco";
         leuEm = Date.now();
         ultimoErro = null;
@@ -71,12 +74,13 @@ export const statusDoCatalogo = () => ({
   fonte,
   produtos: TODOS.length,
   comFoto: TODOS.filter((p) => p.foto).length,
+  maisVendidos: ordenarPorVendidos(TODOS, VENDIDOS).length,
   atualizadoEm: leuEm || null,
   erro: ultimoErro,
   desligado: desligado(),
 });
 
-export type Ordem = "relevancia" | "menor" | "maior" | "promo" | "novo";
+export type Ordem = "relevancia" | "menor" | "maior" | "promo" | "novo" | "vendidos";
 
 export interface Filtro {
   q?: string;
@@ -109,6 +113,7 @@ export function buscar(f: Filtro): Produto[] {
   else if (f.ordem === "maior") lista = [...lista].sort((a, b) => b.preco - a.preco);
   else if (f.ordem === "promo") lista = [...lista].sort((a, b) => desc(b) - desc(a));
   else if (f.ordem === "novo") lista = [...lista].sort((a, b) => Number(b.novo) - Number(a.novo));
+  else if (f.ordem === "vendidos") lista = ordenarPorVendidos(lista, VENDIDOS);
   return lista;
 }
 
@@ -128,6 +133,10 @@ export function tamanhosDisponiveis(): string[] {
   for (const p of TODOS) p.tamanhos.forEach((x) => t.add(x));
   return [...t].sort((a, b) => (isNaN(+a) || isNaN(+b) ? a.localeCompare(b) : +a - +b));
 }
+
+/** A aba "Mais vendidos" só existe quando há ranking de vendas. */
+export const temMaisVendidos = () => VENDIDOS.size > 0;
+export const maisVendidos = (n = 8) => ordenarPorVendidos(TODOS, VENDIDOS).filter((p) => p.foto).slice(0, n);
 
 export const novidades = (n = 8) => TODOS.filter((p) => p.novo && p.foto).slice(0, n);
 export const promocoes = (n = 8) =>
@@ -164,6 +173,8 @@ export interface DadosMenu {
   marcas: string[];
   destaques: Produto[];
   novos: Produto[];
+  /** Painel de Novidades: tem ranking de vendas? */
+  temMaisVendidos: boolean;
   /** Marcas que têm tênis, e 2 tênis para o painel de Tênis. */
   marcasTenis: string[];
   tenis: Produto[];
@@ -179,6 +190,7 @@ export function dadosMenu(): DadosMenu {
     marcas: marcas().slice(0, 12).map((m) => m.valor),
     destaques: promocoes(2),
     novos: novidades(2),
+    temMaisVendidos: temMaisVendidos(),
     marcasTenis: contar((p) => p.categoria === "Tênis" ? p.marca : "").filter((m) => m.valor).map((m) => m.valor),
     tenis: buscar({ categoria: "Tênis", ordem: "novo" }).filter((p) => p.foto).slice(0, 2),
     generos: (["masculino", "feminino"] as Genero[])
