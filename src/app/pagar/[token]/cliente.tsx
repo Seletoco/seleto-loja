@@ -57,6 +57,43 @@ const validade = (v: string) => {
   return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
 };
 
+/** Contagem regressiva do Pix ("Vale por 1h 58min"). Quando zera, recarrega para mostrar "venceu". */
+export function Contagem({ ate }: { ate: string }) {
+  const router = useRouter();
+  const [restante, setRestante] = useState<number | null>(null);
+  useEffect(() => {
+    const fim = new Date(ate).getTime();
+    const tick = () => {
+      const r = Math.max(0, fim - Date.now());
+      setRestante(r);
+      if (r === 0) router.refresh();
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [ate, router]);
+  if (restante === null) return null;
+  const h = Math.floor(restante / 3_600_000);
+  const m = Math.floor((restante % 3_600_000) / 60_000);
+  const sg = Math.floor((restante % 60_000) / 1000);
+  return (
+    <p className="text-sm">
+      Este Pix vale por <b className="tabular-nums">{h > 0 ? `${h}h ` : ""}{String(m).padStart(2, "0")}min {String(sg).padStart(2, "0")}s</b>
+    </p>
+  );
+}
+
+/** Bandeira pelo início do número (só para mostrar um selo; quem decide é a Rede). */
+export function bandeiraDoCartao(numero: string): string | null {
+  const n = numero.replace(/\D/g, "");
+  if (/^4/.test(n)) return "Visa";
+  if (/^(5[1-5]|2(2[2-9]|[3-6]|7[01]|720))/.test(n)) return "Mastercard";
+  if (/^(4011|4312|4389|4514|4576|5041|5066|5067|509|6277|6362|6363|650|6516|6550)/.test(n)) return "Elo";
+  if (/^3[47]/.test(n)) return "American Express";
+  if (/^(606282|3841)/.test(n)) return "Hipercard";
+  return null;
+}
+
 /** Formulário do cartão. Os dados vão direto para o servidor da Seleto → Rede; nada é guardado no navegador. */
 export function FormCartao({ token, valor, parcelasMax }: { token: string; valor: number; parcelasMax: number }) {
   const router = useRouter();
@@ -101,7 +138,10 @@ export function FormCartao({ token, valor, parcelasMax }: { token: string; valor
   return (
     <form onSubmit={pagar} className="space-y-3 border border-borda bg-painel p-5" autoComplete="on">
       <label className="block text-xs font-bold uppercase tracking-wide">
-        Número do cartão
+        <span className="flex items-center justify-between">
+          Número do cartão
+          {bandeiraDoCartao(numero) ? <span className="rounded bg-tenue px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal">{bandeiraDoCartao(numero)}</span> : null}
+        </span>
         <input className="campo mt-1 w-full" inputMode="numeric" autoComplete="cc-number" placeholder="0000 0000 0000 0000" value={numero} onChange={(e) => setNumero(grupos(e.target.value))} required />
       </label>
       <label className="block text-xs font-bold uppercase tracking-wide">

@@ -207,7 +207,7 @@ export default function Checkout() {
           : {
               tipo: entrega,
               endereco: `${logradouro.trim()}, ${numeroEnd.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""} — ${bairro.trim() ? bairro.trim() + ", " : ""}${cidade.trim()}/${uf.trim().toUpperCase()} — CEP ${cepDigitos}`,
-              servico: opcaoEscolhida!.servico,
+              servico: opcaoEscolhida!.nome, // nome legível (ex.: "Correios PAC"), não o código interno
               prazoDias: opcaoEscolhida!.prazoDias,
               freteExemplo: opcaoEscolhida!.exemplo,
             },
