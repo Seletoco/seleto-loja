@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 const CHAVE = "seleto-loja:popup-entrada-visto";
 /** Páginas em que o popup NÃO aparece (o cliente está no meio de uma tarefa). */
-const SEM_POPUP = ["/checkout", "/carrinho", "/pedido", "/admin", "/conta"];
+const SEM_POPUP = ["/checkout", "/carrinho", "/pedido", "/pagar", "/admin", "/conta"];
 
 /**
  * Popup que abre assim que o cliente entra no site (uma vez por visita, lembrado na aba).
