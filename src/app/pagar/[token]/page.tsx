@@ -32,6 +32,7 @@ export default async function Pagar({ params }: { params: Promise<{ token: strin
         <div className="border border-ok bg-painel p-6 text-center">
           <p className="text-lg font-black text-ok">Pagamento confirmado!</p>
           <p className="mt-1 text-sm text-fraco">Obrigado. A loja vai separar o seu pedido e avisar você pelo WhatsApp.</p>
+          <a href="/conta?aba=pedidos" className="btn mt-4">Ver meus pedidos</a>
         </div>
       ) : c.status === "pendente" && qr && c.emv ? (
         <div className="space-y-4 border border-borda bg-painel p-5 text-center">

@@ -244,3 +244,17 @@ export async function consultarPixNaRede(c: ConfigRede, tid: string): Promise<{ 
   const r = await chamarRede(c, `${TRANSACOES_DA_REDE[c.ambiente]}/${encodeURIComponent(tid)}`, { method: "GET" });
   return { ...lerConsultaPix(r.json), http: r.status };
 }
+
+/** Devolução (total ou parcial) de um Pix pago. Manual: POST /v2/transactions/{tid}/refunds { amount }; sucesso = returnCode "359". Até 90 dias. */
+export function lerRespostaDevolucao(json: unknown): { ok: boolean; codigo: string | null; mensagem: string | null } {
+  const j = (json ?? {}) as Record<string, unknown>;
+  const codigo = j.returnCode != null ? String(j.returnCode) : null;
+  return { ok: codigo === "359", codigo, mensagem: j.returnMessage != null ? String(j.returnMessage).slice(0, 200) : null };
+}
+
+export async function devolverPixNaRede(c: ConfigRede, tid: string, valorCentavos: number): Promise<{ ok: boolean; codigo: string | null; mensagem: string | null; http: number }> {
+  const r = await chamarRede(c, `${TRANSACOES_DA_REDE[c.ambiente]}/${encodeURIComponent(tid)}/refunds`, { method: "POST", body: JSON.stringify({ amount: valorCentavos }) });
+  const lido = lerRespostaDevolucao(r.json);
+  if (!lido.ok && !lido.mensagem) lido.mensagem = r.status ? mensagemDeErro(r.status, r.texto) : r.texto;
+  return { ...lido, http: r.status };
+}

@@ -30,6 +30,17 @@ export default function Checkout() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+  const [opcoesPix, setOpcoesPix] = useState<{ pix: boolean; teste: boolean }>({ pix: false, teste: false });
+  const [pagarPix, setPagarPix] = useState(true);
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/pagamentos/opcoes", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { pix?: boolean; teste?: boolean } | null) => { if (vivo && j) setOpcoesPix({ pix: Boolean(j.pix), teste: Boolean(j.teste) }); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, []);
+  const comPix = opcoesPix.pix && pagarPix;
   const [entrega, setEntrega] = useState<"retirada_loja" | "entrega_combinada">("retirada_loja");
   const [loja, setLoja] = useState<string>(() => (typeof window === "undefined" ? null : lerLojaPreferida()) ?? String(LOJAS[0].id));
   // Entrega para todo o Brasil: CEP -> endereço (ViaCEP) + frete (Correios, ou estimativa de exemplo).
@@ -209,6 +220,7 @@ export default function Checkout() {
         entrega: pedido.entrega,
         frete: pedido.frete,
         cashback: pedido.cashback ?? null,
+        pagamento: comPix ? "pix" : null,
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -223,7 +235,17 @@ export default function Checkout() {
         pedido.total = j.total;
         pedido.cashback = j.cashbackUsado > 0 && pedido.cashback ? { ...pedido.cashback, usado: j.cashbackUsado } : undefined;
         pedido.status = "aguardando_pagamento";
+        if (j.pagarUrl) pedido.pagamento = { metodo: "pix", rotulo: "Pix pelo site" };
       }
+      if (typeof j.pagarUrl === "string" && j.pagarUrl.startsWith("/pagar/")) {
+        // Pix gerado: guarda o pedido, esvazia a sacola e leva direto ao QR Code.
+        const antigos = JSON.parse(localStorage.getItem(CHAVE_PEDIDOS) ?? "[]");
+        localStorage.setItem(CHAVE_PEDIDOS, JSON.stringify([pedido, ...antigos]));
+        limpar();
+        router.push(j.pagarUrl);
+        return;
+      }
+      if (j.avisoPix) alert(j.avisoPix);
     } catch {
       setErro("Sem conexão. Seu pedido NÃO foi enviado. Tente novamente.");
       return;
@@ -359,8 +381,16 @@ export default function Checkout() {
         </Secao>
 
         <Secao titulo="4. Pagamento">
-          <Escolha ativo onClick={() => {}} titulo={forma.rotulo} texto={forma.descricao} />
-          <p className="text-xs text-fraco">Nenhuma cobrança é feita pelo site.</p>
+          {opcoesPix.pix ? (
+            <Escolha
+              ativo={pagarPix}
+              onClick={() => setPagarPix(true)}
+              titulo={`Pix agora${opcoesPix.teste ? " (ambiente de teste)" : ""}`}
+              texto="Pague na hora com o QR Code ou o copia e cola. Assim que o Pix cair, a loja separa o seu pedido. Se faltar algum item, devolvemos o valor pelo Pix."
+            />
+          ) : null}
+          <Escolha ativo={!opcoesPix.pix || !pagarPix} onClick={() => setPagarPix(false)} titulo={forma.rotulo} texto={forma.descricao} />
+          <p className="text-xs text-fraco">{opcoesPix.pix && pagarPix ? "O pagamento é processado pela Rede (Itaú)." : "Nenhuma cobrança é feita pelo site."}</p>
         </Secao>
         </div>
         </div>
