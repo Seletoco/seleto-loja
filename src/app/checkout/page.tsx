@@ -55,7 +55,7 @@ export default function Checkout() {
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
   const [cotacao, setCotacao] = useState<RespostaFrete | null>(null);
-  const [servico, setServico] = useState<"PAC" | "SEDEX" | null>(null);
+  const [servico, setServico] = useState<string | null>(null);
   const [calculando, setCalculando] = useState(false);
   const [erroFrete, setErroFrete] = useState("");
   const [erro, setErro] = useState("");

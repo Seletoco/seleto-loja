@@ -87,11 +87,12 @@ const REGIAO: Record<string, Zona> = {
 };
 
 export interface OpcaoFrete {
-  servico: "PAC" | "SEDEX";
+  /** Identificador do serviço (ex.: "PAC", "SEDEX" ou "ME1" do Melhor Envio). */
+  servico: string;
   nome: string;
   valor: number;
   prazoDias: number; // dias úteis
-  /** true = estimativa de exemplo (sem as credenciais dos Correios). */
+  /** true = estimativa de exemplo (sem as credenciais de frete). */
   exemplo: boolean;
 }
 
