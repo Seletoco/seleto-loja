@@ -11,6 +11,7 @@ import { sessaoAtual } from "@/lib/sessao";
 import { cartaoAtivo, gerarCartao, gerarPix } from "@/lib/pagamentos";
 import { configDaRede, podeCobrar } from "@/lib/rede";
 import { hashCpf } from "@/lib/conta-servidor";
+import { conferirFreteDoPedido } from "@/lib/frete-servidor";
 import { soDigitos } from "@/lib/cpf";
 
 /** Endereço em uma linha (igual ao do checkout), para o pedido e a nota. */
@@ -74,11 +75,14 @@ export async function POST(req: Request) {
     regras.tetoUsoPct,
   );
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
+  const fr = await conferirFreteDoPedido(v.pedido); // frete conferido no servidor
+  if ("erro" in fr) return NextResponse.json({ erro: fr.erro }, { status: 400 });
+  const pedidoFinal = fr.pedido;
 
   if (await excedeuLimiteDePedidos(ipDe(req))) return NextResponse.json({ erro: "Muitos pedidos em pouco tempo. Tente novamente mais tarde." }, { status: 429 });
   try {
-    const numero = await gravarPedido(v.pedido, s.contaId ?? null);
-    const p = v.pedido;
+    const numero = await gravarPedido(pedidoFinal, s.contaId ?? null);
+    const p = pedidoFinal;
     let pagarUrl: string | null = null;
     let avisoPagamento: string | null = null;
     if (querPix || querCartao) {
