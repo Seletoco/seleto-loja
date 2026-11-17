@@ -128,3 +128,119 @@ export async function obterTokenRede(c: ConfigRede = configDaRede(), forcar = fa
     clearTimeout(timer);
   }
 }
+
+// ---------------------------------------------------------------- transações (Pix)
+
+/** Endereço das transações (manual da Rede, "Endpoints"). */
+export const TRANSACOES_DA_REDE: Record<AmbienteRede, string> = {
+  sandbox: "https://sandbox-erede.useredecloud.com.br/v2/transactions",
+  producao: "https://api.userede.com.br/erede/v2/transactions",
+};
+
+/** Cobrar de verdade só em produção com REDE_ATIVO=1. No sandbox (testes) sempre pode, porque nada é cobrado. */
+export const podeCobrar = (c: ConfigRede) => Boolean(c.clientId && c.clientSecret) && (c.ambiente === "sandbox" || c.ativo);
+
+/** "reference" da Rede: até 16 caracteres alfanuméricos, único por tentativa. Ex.: SL123k3j9x2 */
+export function referenciaDoPedido(numero: number, agoraMs: number): string {
+  return `SL${numero}${agoraMs.toString(36)}`.replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+}
+
+/** Data/hora de Brasília no formato que a Rede pede para o vencimento do QR Code: AAAA-MM-DDThh:mm:ss. */
+export function horaDeBrasilia(ms: number): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date(ms))
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
+}
+
+/** Corpo do pedido de QR Code Pix (manual: "QR Code Pix request"). Valor em centavos, sem separadores. */
+export function corpoPix(referencia: string, valorCentavos: number, expiraEmMs: number) {
+  return { kind: "pix", reference: referencia, amount: valorCentavos, qrCode: { dateTimeExpiration: horaDeBrasilia(expiraEmMs) } };
+}
+
+export type StatusPagamento = "pendente" | "pago" | "cancelado" | "expirado" | "erro";
+
+export interface RespostaPix {
+  ok: boolean;
+  tid: string | null;
+  emv: string | null;
+  expiraEm: string | null;
+  codigo: string | null;
+  mensagem: string | null;
+}
+
+/** Lê a resposta do pedido de QR Code. Sucesso = returnCode "00" com tid e o "copia e cola". */
+export function lerRespostaPix(json: unknown): RespostaPix {
+  const j = (json ?? {}) as Record<string, unknown>;
+  const qr = (j.qrCodeResponse ?? {}) as Record<string, unknown>;
+  const codigo = j.returnCode != null ? String(j.returnCode) : null;
+  const tid = typeof j.tid === "string" && j.tid ? j.tid : null;
+  const emv = typeof qr.qrCodeData === "string" && qr.qrCodeData ? qr.qrCodeData : null;
+  const expiraEm = typeof qr.dateTimeExpiration === "string" ? qr.dateTimeExpiration : null;
+  return { ok: codigo === "00" && Boolean(tid && emv), tid, emv, expiraEm, codigo, mensagem: j.returnMessage != null ? String(j.returnMessage).slice(0, 200) : null };
+}
+
+/** Lê a consulta da transação (GET /v2/transactions/{tid}). Pendente vem em qrCodeResponse; aprovado em authorization. */
+export function lerConsultaPix(json: unknown): { status: StatusPagamento | null; codigo: string | null } {
+  const j = (json ?? {}) as Record<string, unknown>;
+  const bloco = ((j.authorization ?? j.qrCodeResponse ?? {}) as Record<string, unknown>);
+  const codigo = j.returnCode != null ? String(j.returnCode) : bloco.returnCode != null ? String(bloco.returnCode) : null;
+  if (codigo === "3036") return { status: "expirado", codigo };
+  const s = String(bloco.status ?? "").toLowerCase();
+  if (s === "approved") return { status: "pago", codigo };
+  if (s === "canceled" || s === "cancelled") return { status: "cancelado", codigo };
+  if (s === "pending") return { status: "pendente", codigo };
+  return { status: null, codigo };
+}
+
+/** Do aviso (webhook) da Rede, só o identificador da transação e os eventos. */
+export function lerAvisoPix(json: unknown): { tid: string | null; eventos: string[] } {
+  const j = (json ?? {}) as Record<string, unknown>;
+  const d = (j.data ?? {}) as Record<string, unknown>;
+  const tid = [d.id, d.qrcode].find((x) => typeof x === "string" && /^[A-Za-z0-9]{6,40}$/.test(x)) as string | undefined;
+  const eventos = Array.isArray(j.events) ? j.events.filter((e): e is string => typeof e === "string").slice(0, 10) : [];
+  return { tid: tid ?? null, eventos };
+}
+
+async function chamarRede(c: ConfigRede, url: string, init: RequestInit): Promise<{ status: number; json: unknown; texto: string }> {
+  const t = await obterTokenRede(c);
+  if (!t.ok) return { status: 0, json: null, texto: t.erro };
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 15_000);
+  try {
+    const r = await fetch(url, {
+      ...init,
+      cache: "no-store",
+      signal: abort.signal,
+      headers: { Authorization: `Bearer ${t.token.accessToken}`, "Content-Type": "application/json", Accept: "application/json", ...(init.headers ?? {}) },
+    });
+    const texto = await r.text();
+    let json: unknown = null;
+    try {
+      json = JSON.parse(texto);
+    } catch {
+      /* não é JSON */
+    }
+    return { status: r.status, json, texto };
+  } catch {
+    return { status: 0, json: null, texto: "Sem resposta da Rede." };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Pede o QR Code Pix à Rede. */
+export async function criarPixNaRede(c: ConfigRede, referencia: string, valorCentavos: number, expiraEmMs: number): Promise<RespostaPix & { http: number }> {
+  const r = await chamarRede(c, TRANSACOES_DA_REDE[c.ambiente], { method: "POST", body: JSON.stringify(corpoPix(referencia, valorCentavos, expiraEmMs)) });
+  const lido = lerRespostaPix(r.json);
+  if (!lido.ok && !lido.mensagem) lido.mensagem = r.status ? mensagemDeErro(r.status, r.texto) : r.texto;
+  return { ...lido, http: r.status };
+}
+
+/** Consulta a transação pelo TID. */
+export async function consultarPixNaRede(c: ConfigRede, tid: string): Promise<{ status: StatusPagamento | null; codigo: string | null; http: number }> {
+  const r = await chamarRede(c, `${TRANSACOES_DA_REDE[c.ambiente]}/${encodeURIComponent(tid)}`, { method: "GET" });
+  return { ...lerConsultaPix(r.json), http: r.status };
+}

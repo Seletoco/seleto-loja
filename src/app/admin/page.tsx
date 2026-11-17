@@ -6,7 +6,8 @@ import { listarPedidos } from "@/lib/pedidos-admin";
 import { garantirCatalogo, statusDoCatalogo } from "@/lib/catalogo";
 import { PainelPedidos } from "./painel";
 import { CartaoRede } from "./rede";
-import { configDaRede, resumoDaConfig } from "@/lib/rede";
+import { configDaRede, podeCobrar, resumoDaConfig } from "@/lib/rede";
+import { ultimasCobrancas } from "@/lib/pagamentos";
 
 // Painel depende do login (cookie) e do banco: nunca pré-gerar.
 export const dynamic = "force-dynamic";
@@ -19,7 +20,9 @@ async function sair() {
 
 export default async function Admin() {
   if (!(await admLogado())) redirect("/admin/login");
-  const doBanco = bancoLigado() ? await listarPedidos() : undefined;
+  const lista = bancoLigado() ? await listarPedidos() : undefined;
+  const cobrancas = lista ? await ultimasCobrancas(lista.map((p) => p.numero)) : {};
+  const doBanco = lista?.map((p) => (cobrancas[p.numero] ? { ...p, cobranca: { ...cobrancas[p.numero], emv: undefined } } : p));
   await garantirCatalogo();
   const cat = statusDoCatalogo();
   return (
@@ -46,7 +49,7 @@ export default async function Admin() {
         {cat.erro ? <p className="mt-1 text-promo">Último aviso: {cat.erro}</p> : null}
       </section>
       <CartaoRede resumo={resumoDaConfig(configDaRede())} />
-      <PainelPedidos doBanco={doBanco} />
+      <PainelPedidos doBanco={doBanco} pixLigado={podeCobrar(configDaRede())} />
     </div>
   );
 }
