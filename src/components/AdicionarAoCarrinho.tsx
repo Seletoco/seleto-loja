@@ -25,6 +25,9 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erroRapido, setErroRapido] = useState("");
+  // Formas de pagar na hora (só aparecem se a Rede estiver ligada) e a escolhida.
+  const [online, setOnline] = useState<{ pix: boolean; cartao: boolean; teste: boolean }>({ pix: false, cartao: false, teste: false });
+  const [forma, setForma] = useState<"loja" | "pix" | "cartao">("loja");
 
   useEffect(() => {
     let vivo = true;
@@ -46,6 +49,12 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
     if (!tamanho) return setFalta(true);
     setErroRapido("");
     setConfirmando(true);
+    fetch("/api/pagamentos/opcoes", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { pix?: boolean; cartao?: boolean; teste?: boolean } | null) => {
+        if (j) setOnline({ pix: Boolean(j.pix), cartao: Boolean(j.cartao), teste: Boolean(j.teste) });
+      })
+      .catch(() => {});
   }
 
   async function comprarUmClique() {
@@ -53,7 +62,7 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
     setEnviando(true);
     setErroRapido("");
     try {
-      const r = await fetch("/api/pedidos/rapido", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: p.ref, tamanho, lojaId: Number(lojaId) }) });
+      const r = await fetch("/api/pedidos/rapido", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: p.ref, tamanho, lojaId: Number(lojaId), pagamento: formaEfetiva === "loja" ? null : formaEfetiva }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
         setErroRapido(j.erro ?? "Não foi possível comprar agora.");
@@ -66,7 +75,7 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
         itens: (j.itens as { ref: string; nome: string; cor: string; tamanho: string; quantidade: number; preco: number }[]).map((i) => ({ ...i, foto: p.foto })),
         cliente: { nome: j.nome, telefone: j.telefone, email: j.email ?? "" },
         entrega: { tipo: "retirada_loja", loja: j.loja },
-        pagamento: { metodo: j.pagamento, rotulo: "Pagar na retirada" },
+        pagamento: { metodo: j.pagamento, rotulo: j.pagarUrl ? (j.pagamento === "cartao" ? "Cartão de crédito pelo site" : "Pix pelo site") : "Pagar na retirada" },
         subtotal: j.subtotal,
         frete: 0,
         total: j.total,
@@ -78,6 +87,11 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
       } catch {
         /* sem armazenamento: o pedido continua salvo no banco */
       }
+      if (typeof j.pagarUrl === "string" && j.pagarUrl.startsWith("/pagar/")) {
+        router.push(j.pagarUrl); // Pix ou cartão: leva direto à página de pagamento
+        return;
+      }
+      if (j.avisoPagamento) alert(j.avisoPagamento);
       router.push(`/pedido/${j.numero}`);
     } catch {
       setErroRapido("Sem conexão. Seu pedido NÃO foi enviado. Tente novamente.");
@@ -88,6 +102,8 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
 
   const ligada = perfil?.logado === true && perfil.ligada;
   const lojaNome = LOJAS.find((l) => String(l.id) === lojaId)?.nome;
+  // Se a forma escolhida não estiver disponível, volta para pagar na retirada.
+  const formaEfetiva: "loja" | "pix" | "cartao" = forma === "pix" && online.pix ? "pix" : forma === "cartao" && online.cartao ? "cartao" : "loja";
 
   return (
     <div className="space-y-5">
@@ -138,8 +154,25 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
           </p>
           <p className="text-fraco">
             Em nome de <b className="text-texto">{perfil.nome}</b>
-            {perfil.telefone ? <>, contato com final <b className="text-texto">{perfil.telefone.slice(-4)}</b></> : null}. Retirada grátis; você paga na loja, ao retirar. A loja confirma a disponibilidade e avisa você.
+            {perfil.telefone ? <>, contato com final <b className="text-texto">{perfil.telefone.slice(-4)}</b></> : null}. Retirada grátis na loja escolhida. {formaEfetiva === "loja" ? "Você paga na loja, ao retirar. A loja confirma a disponibilidade e avisa você." : "Você paga agora, na próxima tela. Se faltar o produto, devolvemos o valor."}
           </p>
+          {online.pix || online.cartao ? (
+            <fieldset className="space-y-1.5">
+              <legend className="text-xs font-bold uppercase tracking-wide text-fraco">Como pagar</legend>
+              {([
+                ["loja", "Pagar na loja, ao retirar", true],
+                ["pix", `Pix agora${online.teste ? " (teste)" : ""}`, online.pix],
+                ["cartao", `Cartão de crédito agora${online.teste ? " (teste)" : ""}`, online.cartao],
+              ] as [typeof forma, string, boolean][])
+                .filter(([, , ligado]) => ligado)
+                .map(([v, rotulo]) => (
+                  <label key={v} className={`flex cursor-pointer items-center gap-2 border px-3 py-2 ${formaEfetiva === v ? "border-texto bg-tenue font-bold" : "border-borda"}`}>
+                    <input type="radio" name="forma-rapida" checked={formaEfetiva === v} onChange={() => setForma(v)} />
+                    {rotulo}
+                  </label>
+                ))}
+            </fieldset>
+          ) : null}
           <label className="block text-xs font-bold uppercase tracking-wide text-fraco" htmlFor="loja-rapida">Loja para retirar</label>
           <select id="loja-rapida" className="campo !mt-1" value={lojaId ?? ""} onChange={(e) => trocarLoja(e.target.value)}>
             <option value="" disabled>Escolha a loja</option>
@@ -149,7 +182,7 @@ export function AdicionarAoCarrinho({ p }: { p: Produto }) {
           </select>
           {erroRapido ? <p className="text-promo" role="alert">{erroRapido}</p> : null}
           <div className="flex gap-2">
-            <button type="button" onClick={comprarUmClique} disabled={enviando || !lojaNome} className="btn flex-1">{enviando ? "Enviando…" : "Confirmar compra"}</button>
+            <button type="button" onClick={comprarUmClique} disabled={enviando || !lojaNome} className="btn flex-1">{enviando ? "Enviando…" : formaEfetiva === "loja" ? "Confirmar compra" : "Confirmar e pagar"}</button>
             <button type="button" onClick={() => setConfirmando(false)} disabled={enviando} className="btn-claro">Cancelar</button>
           </div>
         </div>
