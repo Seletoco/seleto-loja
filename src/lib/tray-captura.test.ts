@@ -25,7 +25,13 @@ test("respostas mínimas: auth devolve token de captura; pedidos vêm vazios", (
   assert.equal(a.status, 200);
   assert.equal((a.json as { api_host: string }).api_host, "https://loja.exemplo/web_api");
   assert.deepEqual((respostaDeCaptura("GET", "orders", "x").json as { Orders: unknown[] }).Orders, []);
-  assert.deepEqual((respostaDeCaptura("GET", "orders/statuses", "x").json as { OrderStatuses: unknown[] }).OrderStatuses, []);
+  const st = respostaDeCaptura("GET", "orders/statuses", "x", 1).json as { OrderStatuses: { OrderStatus: { id: string } }[]; paging: { total: number } };
+  assert.equal(st.OrderStatuses.length, 6);
+  assert.equal(st.paging.total, 6);
+  assert.deepEqual(st.OrderStatuses.map((s) => s.OrderStatus.id).slice(0, 3), ["1", "39", "31"]);
+  assert.deepEqual((respostaDeCaptura("GET", "orders/statuses", "x", 2).json as { OrderStatuses: unknown[] }).OrderStatuses, []);
+  assert.equal(respostaDeCaptura("GET", "orders/statuses", "x", 4).status, 404);
+  assert.equal(respostaDeCaptura("GET", "orders/statuses", "x", 250).status, 404);
 });
 
 test("callback: só localhost e a API do PDVNet", () => {

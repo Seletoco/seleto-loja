@@ -8,7 +8,8 @@ async function tratar(req: Request, { params }: { params: Promise<{ caminho: str
   const { caminho } = await params;
   const rota = caminho.join("/").slice(0, 200);
   await registrar(req, `/web_api/${rota}`);
-  const r = respostaDeCaptura(req.method, rota, new URL(req.url).origin);
+  const pagina = Math.max(1, Math.min(10_000, Math.floor(Number(new URL(req.url).searchParams.get("page"))) || 1));
+  const r = respostaDeCaptura(req.method, rota, new URL(req.url).origin, pagina);
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });
 }
 

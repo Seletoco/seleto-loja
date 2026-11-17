@@ -60,8 +60,22 @@ const agora = () => new Date();
 const emDias = (n: number) => new Date(agora().getTime() + n * 86_400_000).toISOString().slice(0, 19).replace("T", " ");
 
 /** Respostas mínimas no estilo da Tray, só para o PDVNet continuar chamando e a gente ver o próximo passo. */
-export function respostaDeCaptura(metodo: string, caminho: string, origem: string): { status: number; json: unknown } {
+/** Status de pedido oferecidos ao PDVNet (ids como os padrões dele: Pagos 1, Faturado 31, Confirmados 39). */
+export const STATUS_DE_CAPTURA: { id: string; status: string }[] = [
+  { id: "1", status: "Pago" },
+  { id: "39", status: "Em separação" },
+  { id: "31", status: "Faturado" },
+  { id: "40", status: "Enviado" },
+  { id: "41", status: "Entregue" },
+  { id: "9", status: "Cancelado" },
+];
+
+const paginacao = (total: number, pagina: number) => ({ total, page: pagina, offset: 0, limit: 50, maxLimit: 50 });
+
+export function respostaDeCaptura(metodo: string, caminho: string, origem: string, pagina = 1): { status: number; json: unknown } {
   const c = caminho.replace(/^\/+|\/+$/g, "");
+  // Páginas absurdas: devolve 404 no estilo da Tray em vez de lista vazia (o PDVNet chegou a pedir 290 páginas seguidas).
+  if (pagina > 3) return { status: 404, json: { code: 404, message: "Not Found", causes: ["Página inexistente."] } };
   if (c === "auth" && metodo === "POST") {
     return {
       status: 200,
@@ -78,7 +92,10 @@ export function respostaDeCaptura(metodo: string, caminho: string, origem: strin
       },
     };
   }
-  if (/^orders\/statuses$/.test(c)) return { status: 200, json: { OrderStatuses: [] } };
-  if (/^orders(\/|$)/.test(c) && metodo === "GET") return { status: 200, json: { paging: { total: 0, page: 1, offset: 0, limit: 50, maxLimit: 50 }, Orders: [] } };
+  if (/^orders\/statuses$/.test(c)) {
+    const lista = pagina === 1 ? STATUS_DE_CAPTURA.map((s) => ({ OrderStatus: { id: s.id, status: s.status, default: "0", description: "", show_status: "1" } })) : [];
+    return { status: 200, json: { paging: paginacao(STATUS_DE_CAPTURA.length, pagina), OrderStatuses: lista } };
+  }
+  if (/^orders(\/|$)/.test(c) && metodo === "GET") return { status: 200, json: { paging: paginacao(0, pagina), Orders: [] } };
   return { status: 200, json: { code: 200, message: "captura" } };
 }
