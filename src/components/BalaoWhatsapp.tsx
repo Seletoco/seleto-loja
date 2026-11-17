@@ -12,7 +12,7 @@ export function BalaoWhatsapp({ href }: { href: string }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Fale com a Seleto no WhatsApp"
-      className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:scale-105 hover:bg-[#1ebe5a] sm:bottom-6 sm:right-6"
+      className="fixed bottom-4 right-4 z-40 print:hidden flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:scale-105 hover:bg-[#1ebe5a] sm:bottom-6 sm:right-6"
     >
       <svg viewBox="0 0 24 24" className="size-6 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z" />

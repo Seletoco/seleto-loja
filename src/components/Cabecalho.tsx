@@ -65,7 +65,7 @@ export function Cabecalho({ menu, logos = {}, teste, blackFriday = false }: { me
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white">
+    <header className="sticky top-0 z-40 bg-white print:hidden">
       {blackFriday ? <BalaoBlackFriday /> : null}
       {teste ? (
         <div className="bg-destaque px-4 py-1 text-center text-[11px] font-bold uppercase tracking-wide text-texto">

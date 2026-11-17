@@ -7,7 +7,7 @@ export function Rodape() {
   const tel = telefoneGeral();
   const zap = linkWhatsappGeral("Olá! Vim pelo site da Seleto.");
   return (
-    <footer className="mt-16 bg-texto text-white">
+    <footer className="mt-16 bg-texto text-white print:hidden">
       <div className="mx-auto grid max-w-[1500px] gap-10 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-3">
           <p className="titulao text-4xl tracking-[0.18em]">SELETO</p>

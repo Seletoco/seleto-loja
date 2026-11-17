@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ROTULO_STATUS } from "./Blocos";
 import { reais, telefoneBonito } from "@/lib/format";
 import type { PedidoSalvo } from "@/lib/tipos";
 
@@ -39,7 +41,7 @@ export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: Pedido
     <section className="space-y-3">
       <h2 className="font-semibold">{doBanco ? "Pedidos" : "Pedidos (teste, deste navegador)"}</h2>
       {doBanco ? (
-        <p className="text-xs text-fraco">Pedidos gravados no banco. O pagamento não é cobrado pelo site: a loja confirma e combina com o cliente.</p>
+        <p className="text-xs text-fraco">Confirme o estoque, mude o status e, se o cliente for pagar online, gere o Pix no pedido.</p>
       ) : (
         <p className="text-xs text-fraco">Neste ambiente os pedidos ficam só no navegador. Ao ligar o banco, vêm da tabela <code>loja.pedidos</code>.</p>
       )}
@@ -51,16 +53,23 @@ export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: Pedido
         {pedidos.map((p) => (
           <article key={p.numero} className="space-y-2 rounded-lg border border-borda bg-painel p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <strong>Pedido {p.numero}</strong>
+              <strong className="text-base">#{p.numero}</strong>
               <select className="campo !w-auto" value={p.status} onChange={(e) => mudar(p.numero, e.target.value)} aria-label="Status">
                 {[...new Set([p.status, ...STATUS])].map((s) => (
-                  <option key={s} value={s}>{s.replaceAll("_", " ")}</option>
+                  <option key={s} value={s}>{ROTULO_STATUS[s] ?? s.replaceAll("_", " ")}</option>
                 ))}
               </select>
             </div>
+            <p className="text-xs text-fraco">{new Date(p.criadoEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
             <p>{p.cliente.nome} · {telefoneBonito(p.cliente.telefone)}</p>
+            {doBanco ? (
+              <div className="flex flex-wrap gap-3 text-xs font-bold">
+                <Link href={`/admin/pedidos/${p.numero}/separacao`} className="underline">Folha de separação</Link>
+                {zapCliente(p) ? <a href={zapCliente(p)!} target="_blank" rel="noopener noreferrer" className="underline">WhatsApp do cliente</a> : null}
+              </div>
+            ) : null}
             <p className="text-fraco">
-              {p.entrega.tipo === "retirada_loja" ? `Retirada: ${p.entrega.loja}` : `Entrega ${p.entrega.servico ?? ""}${p.entrega.freteExemplo ? " (frete estimado — confirmar)" : ""}: ${p.entrega.endereco}`} · {p.pagamento.rotulo}
+              {p.entrega.tipo === "retirada_loja" ? `Retirada: ${p.entrega.loja ?? "loja a definir"}` : `Entrega${p.entrega.servico ? ` ${p.entrega.servico}` : ""}${p.entrega.freteExemplo ? " (frete estimado, confirmar)" : ""}: ${p.entrega.endereco ?? "endereço a combinar"}`} · {p.pagamento.rotulo}
             </p>
             <ul className="text-fraco">
               {p.itens.map((i) => (
@@ -147,4 +156,12 @@ function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLiga
       </div>
     </div>
   );
+}
+
+/** Conversa no WhatsApp com o cliente do pedido (número que ele informou no pedido). */
+function zapCliente(p: PedidoSalvo): string | null {
+  const fone = p.cliente.telefone.replace(/[^0-9]/g, "");
+  if (fone.length < 10) return null;
+  const texto = `Olá, ${p.cliente.nome.split(" ")[0]}! Aqui é da Seleto, sobre o seu pedido ${p.numero} pelo site.`;
+  return `https://wa.me/${fone.startsWith("55") ? fone : `55${fone}`}?text=${encodeURIComponent(texto)}`;
 }
