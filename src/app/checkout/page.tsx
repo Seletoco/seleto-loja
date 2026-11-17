@@ -444,6 +444,9 @@ export default function Checkout() {
         <div className="flex justify-between text-lg font-black"><span>Total</span><span>{reais(total)}</span></div>
         {erro ? <p className="text-sm text-promo">{erro}</p> : null}
         <button type="submit" className="btn w-full" disabled={enviando}>{enviando ? "Enviando…" : "Fazer pedido"}</button>
+        <p className="text-center text-xs text-fraco">
+          Ao fazer o pedido você concorda com os <Link href="/termos" className="underline">Termos de compra</Link> e a <Link href="/privacidade" className="underline">Política de privacidade</Link>.
+        </p>
       </aside>
     </form>
   );
