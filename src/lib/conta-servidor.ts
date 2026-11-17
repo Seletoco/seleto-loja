@@ -60,14 +60,15 @@ export async function dadosDoCliente(cpfHash: string, verificado: boolean): Prom
         ORDER BY valido_ate, vale_a_partir_de`, [cpfHash]),
     banco.query<{ ganhou: string; usou: string; saldo: string; data: string; vence: string }>(
       `SELECT ganhou, usou, saldo, to_char(criado_em AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS data, to_char(valido_ate, 'YYYY-MM-DD') AS vence
-         FROM loja.v_extrato_cashback_por_cpf WHERE cpf_hash = $1 ORDER BY criado_em DESC LIMIT 50`, [cpfHash]),
+         FROM loja.v_extrato_cashback_por_cpf WHERE cpf_hash = $1 AND criado_em >= now() - interval '12 months' ORDER BY criado_em DESC LIMIT 50`, [cpfHash]),
+    // Histórico só dos últimos 12 meses (decisão do dono): nada mais antigo sai do servidor, então o cliente não soma o total de sempre.
     banco.query<{ id: string; data: string; loja_id: number; valor: string; usado: string }>(
       `SELECT venda_id::text AS id, data_hora AS data, loja_id, valor, cashback_usado AS usado
-         FROM loja.v_compras_por_cpf WHERE cpf_hash = $1 ORDER BY data_hora DESC LIMIT 20`, [cpfHash]),
+         FROM loja.v_compras_por_cpf WHERE cpf_hash = $1 AND data_hora >= now() - interval '12 months' ORDER BY data_hora DESC LIMIT 20`, [cpfHash]),
     banco.query<{ id: string; nome: string; marca: string | null; cor: string | null; tamanho: string | null; quantidade: string }>(
       `SELECT i.venda_id::text AS id, i.produto_nome AS nome, i.marca, i.cor, i.tamanho, i.quantidade
          FROM loja.v_compra_itens_por_cpf i
-        WHERE i.cpf_hash = $1 AND i.venda_id IN (SELECT venda_id FROM loja.v_compras_por_cpf WHERE cpf_hash = $1 ORDER BY data_hora DESC LIMIT 20)`, [cpfHash]),
+        WHERE i.cpf_hash = $1 AND i.venda_id IN (SELECT venda_id FROM loja.v_compras_por_cpf WHERE cpf_hash = $1 AND data_hora >= now() - interval '12 months' ORDER BY data_hora DESC LIMIT 20)`, [cpfHash]),
     banco.query<{ compras: number; gasto: string }>(`SELECT compras, gasto FROM loja.v_gasto_12m_por_cpf WHERE cpf_hash = $1`, [cpfHash]),
     banco.query<{ avisos_cashback: boolean; avisos_promocoes: boolean }>(`SELECT avisos_cashback, avisos_promocoes FROM loja.preferencias WHERE cpf_hash = $1`, [cpfHash]),
     banco.query<{ id: string; descricao: string; tamanho: string | null }>(`SELECT id::text, descricao, tamanho FROM loja.alertas_produto WHERE cpf_hash = $1 AND ativo ORDER BY criado_em DESC LIMIT 20`, [cpfHash]),

@@ -8,6 +8,9 @@ import { nomeParaPreencher } from "@/lib/cpf-nome";
 import type { Alerta, DadosConta, Preferencias } from "@/lib/conta-tipos";
 import { LINK_AVALIACAO_GOOGLE, linkWhatsappDaLoja } from "@/lib/lojas";
 import { BENEFICIOS_POR_NIVEL, PORTA_DO_CLUBE, linkGrupoVip } from "@/lib/vantagens";
+import { useRegrasCashback } from "@/lib/use-regras-cashback";
+import { ProdutoCard } from "@/components/ProdutoCard";
+import type { Produto } from "@/lib/tipos";
 
 const hoje = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10); // dia de Brasília
 const diasAte = (iso: string) => Math.round((new Date(iso + "T00:00:00Z").getTime() - new Date(hoje() + "T00:00:00Z").getTime()) / 86_400_000);
@@ -15,8 +18,8 @@ const post = (url: string, corpo: object) => fetch(url, { method: "POST", header
 
 const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
-type Aba = "cashback" | "compras" | "vantagens" | "nivel" | "ajustes";
-const ABAS: Aba[] = ["cashback", "compras", "vantagens", "nivel", "ajustes"];
+type Aba = "cashback" | "pedidos" | "compras" | "vantagens" | "nivel" | "ajustes";
+const ABAS: Aba[] = ["cashback", "pedidos", "compras", "vantagens", "nivel", "ajustes"];
 /** Só roda no navegador (a área só monta depois do login), então pode ler a URL direto. */
 const paramDaUrl = (nome: string) => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(nome));
 
@@ -236,11 +239,12 @@ function Icone({ d }: { d: string }) {
     </svg>
   );
 }
-const ICONES = { cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", vantagens: "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
+const ICONES = { pedidos: "M3 7h18M3 7l2-4h14l2 4M3 7v13h18V7M9 11h6", cashback: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", compras: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0", vantagens: "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z", ajustes: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", nivel: "M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" };
 
 function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
   const [aba, setAba] = useState<Aba>(() => ABAS.find((a) => a === paramDaUrl("aba")) ?? "cashback");
-  const abas: [Aba, string][] = [["cashback", "Cashback"], ["compras", "Compras"], ["vantagens", "Vantagens"], ["nivel", "Nível"], ["ajustes", "Ajustes"]];
+  const abas: [Aba, string][] = [["cashback", "Cashback"], ["pedidos", "Pedidos"], ["compras", "Lojas"], ["vantagens", "Vantagens"], ["nivel", "Nível"], ["ajustes", "Ajustes"]];
+  const regras = useRegrasCashback();
   const n = dados.nivel;
   const disponivel = dados.cashbacks.filter((c) => diasAte(c.liberaEm) <= 0).reduce((s, c) => s + c.valor, 0);
   const aLiberar = dados.cashbacks.filter((c) => diasAte(c.liberaEm) > 0).reduce((s, c) => s + c.valor, 0);
@@ -264,9 +268,20 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
         <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <section className="relative overflow-hidden bg-texto p-6 text-white">
             <div className="pointer-events-none absolute -bottom-8 -right-8 h-20 w-20 rotate-12 bg-destaque" />
-            <p className="relative text-xs font-bold uppercase tracking-widest text-white/70">Cashback para usar agora</p>
-            <p className="relative mt-1 text-5xl font-black tracking-tight text-destaque">{reais(disponivel)}</p>
-            <div className="relative mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-4 text-sm">
+            {disponivel === 0 && aLiberar === 0 ? (
+              <>
+                <p className="relative text-xs font-bold uppercase tracking-widest text-white/70">Seu cashback</p>
+                <p className="relative mt-1 text-3xl font-black leading-tight tracking-tight text-destaque">Ganhe até {regras.ganhoMaxPct}% de volta</p>
+                <p className="relative mt-2 text-sm text-white/80">{regras.ganhoMaxPct}% no Pix e no dinheiro, {regras.ganhoMinPct}% no cartão. Libera em {regras.diasParaLiberar} dias para usar na próxima compra.</p>
+                <Link href="/produtos" className="relative mt-4 inline-block bg-destaque px-4 py-2 text-xs font-black uppercase tracking-wide text-texto">Ver produtos</Link>
+              </>
+            ) : (
+              <>
+                <p className="relative text-xs font-bold uppercase tracking-widest text-white/70">Cashback para usar agora</p>
+                <p className="relative mt-1 text-5xl font-black tracking-tight text-destaque">{reais(disponivel)}</p>
+              </>
+            )}
+            <div className={`relative mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-4 text-sm ${disponivel === 0 && aLiberar === 0 ? "hidden" : ""}`}>
               <div>
                 <p className="text-xs text-white/60">Libera em breve</p>
                 <p className="font-bold">{reais(aLiberar)}</p>
@@ -278,7 +293,8 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
             </div>
           </section>
 
-          <section className="border border-borda bg-painel p-5">
+          <section className="relative overflow-hidden border border-borda bg-painel p-5">
+            <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: cor }} />
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-widest text-fraco">Seu nível</p>
               <span className="px-3 py-1 text-xs font-black uppercase tracking-wide text-white" style={{ background: cor }}>{n.nome}</span>
@@ -292,12 +308,17 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
             <p className="mt-3 text-sm">
               {n.proximo ? <>Faltam <b>{reais(n.faltaGasto)}</b>{n.faltaCompras > 0 ? <> e <b>{n.faltaCompras} {n.faltaCompras === 1 ? "compra" : "compras"}</b></> : null} para o nível <b>{n.proximo}</b>.</> : "Você está no nível máximo. Obrigado!"}
             </p>
+            {n.proximo && BENEFICIOS_POR_NIVEL.find((b) => b.nivel === n.proximo)?.beneficios.length ? (
+              <p className="mt-2 border-t border-borda pt-2 text-xs text-fraco">
+                No {n.proximo}: <b className="text-texto">{BENEFICIOS_POR_NIVEL.find((b) => b.nivel === n.proximo)!.beneficios[0]}</b>
+              </p>
+            ) : null}
           </section>
         </div>
 
         {/* coluna do conteúdo */}
         <div className="min-w-0 space-y-4">
-          <div className="grid grid-cols-5 border border-borda bg-painel">
+          <div className="grid grid-cols-6 border border-borda bg-painel">
             {abas.map(([k, t]) => (
               <button key={k} onClick={() => setAba(k)} className={`flex flex-col items-center justify-center gap-1 px-1 py-3 text-[10px] font-bold uppercase tracking-wide transition sm:flex-row sm:gap-2 sm:px-2 sm:text-sm ${aba === k ? "bg-texto text-white" : "hover:bg-tenue"}`}>
                 <Icone d={ICONES[k]} />
@@ -305,7 +326,7 @@ function Area({ dados, sair }: { dados: DadosConta; sair: () => void }) {
               </button>
             ))}
           </div>
-          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "compras" ? <AbaCompras dados={dados} /> : aba === "vantagens" ? <AbaVantagens dados={dados} /> : aba === "nivel" ? <AbaNivel dados={dados} /> : <AbaAjustes dados={dados} />}
+          {aba === "cashback" ? <AbaCashback dados={dados} /> : aba === "pedidos" ? <AbaPedidos /> : aba === "compras" ? <AbaCompras dados={dados} /> : aba === "vantagens" ? <AbaVantagens dados={dados} /> : aba === "nivel" ? <AbaNivel dados={dados} /> : <AbaAjustes dados={dados} />}
         </div>
       </div>
     </div>
@@ -343,7 +364,7 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
       )}
       {extrato.length > 0 ? (
         <section>
-          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fraco">Extrato</h2>
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-fraco">Extrato dos últimos 12 meses</h2>
           <ul className="grid gap-2 text-sm md:grid-cols-2">
             {extrato.map((e, i) => {
               const venceu = e.saldo > 0 && diasAte(e.venceEm) < 0;
@@ -365,14 +386,107 @@ function AbaCashback({ dados }: { dados: DadosConta }) {
         </section>
       ) : null}
       <p className="text-xs text-fraco">Use o cashback nas lojas Seleto informando seu celular no caixa. Desconto máximo de 20% do valor da compra.</p>
+      <ParaVoce />
     </div>
+  );
+}
+
+/** Vitrine "Para você": o que o cliente pediu para ser avisado (no tamanho dele) e novidades. */
+function ParaVoce() {
+  const [produtos, setProdutos] = useState<Produto[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/conta/para-voce")
+      .then((r) => (r.ok ? r.json() : { produtos: [] }))
+      .then((j: { produtos?: Produto[] }) => { if (vivo) setProdutos(j.produtos ?? []); })
+      .catch(() => { if (vivo) setProdutos([]); });
+    return () => { vivo = false; };
+  }, []);
+  if (!produtos || produtos.length === 0) return null;
+  return (
+    <section className="space-y-3 border-t border-borda pt-5">
+      <div className="flex items-end justify-between">
+        <h2 className="titulao text-2xl">Para você</h2>
+        <Link href="/produtos?ordem=novo" className="text-xs font-bold underline">Ver novidades</Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-4">
+        {produtos.slice(0, 8).map((p) => <ProdutoCard key={p.ref} p={p} />)}
+      </div>
+    </section>
+  );
+}
+
+type PedidoDoSite = {
+  numero: number;
+  criadoEm: string;
+  status: string;
+  total: number;
+  entrega: string;
+  itens: { nome: string; tamanho: string | null; quantidade: number }[];
+  pix: { status: string; link: string | null } | null;
+};
+const STATUS_DO_PEDIDO: Record<string, string> = {
+  aguardando_pagamento: "Recebido: a loja vai confirmar",
+  pago: "Pago",
+  em_separacao: "Em separação",
+  pronto_retirada: "Pronto para retirar",
+  enviado: "Enviado",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
+
+/** 5) Pedidos feitos no site, com o botão de pagar o Pix quando a loja já gerou. */
+function AbaPedidos() {
+  const [pedidos, setPedidos] = useState<PedidoDoSite[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/conta/pedidos", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { pedidos: [] }))
+      .then((j: { pedidos?: PedidoDoSite[] }) => { if (vivo) setPedidos(j.pedidos ?? []); })
+      .catch(() => { if (vivo) setPedidos([]); });
+    return () => { vivo = false; };
+  }, []);
+  if (pedidos === null) return <p className="p-8 text-center text-fraco">Carregando…</p>;
+  if (pedidos.length === 0)
+    return (
+      <div className="border border-borda bg-painel p-8 text-center">
+        <p className="text-fraco">Você ainda não fez pedidos pelo site.</p>
+        <Link href="/produtos" className="btn mt-4">Ver produtos</Link>
+      </div>
+    );
+  return (
+    <ul className="grid items-start gap-3 xl:grid-cols-2">
+      {pedidos.map((p) => (
+        <li key={p.numero} className="border border-borda bg-painel">
+          <div className="flex items-center justify-between gap-3 border-b border-borda bg-tenue px-4 py-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide">Pedido #{p.numero}</p>
+              <p className="text-xs text-fraco">{dataBr(p.criadoEm)} · {p.entrega}</p>
+            </div>
+            <p className="text-lg font-black">{reais(p.total)}</p>
+          </div>
+          <div className="space-y-2 px-4 py-3 text-sm">
+            <p className={`inline-block px-2 py-1 text-[10px] font-black uppercase tracking-wide ${p.status === "cancelado" ? "bg-tenue text-fraco" : p.status === "entregue" || p.status === "pago" ? "bg-ok text-white" : "bg-destaque text-texto"}`}>{STATUS_DO_PEDIDO[p.status] ?? p.status}</p>
+            <ul className="space-y-1">
+              {p.itens.map((i, k) => (
+                <li key={k} className="flex justify-between gap-3"><span>{i.nome}{i.tamanho ? <span className="text-fraco"> · tam. {i.tamanho}</span> : null}</span><span className="text-fraco">{i.quantidade}×</span></li>
+              ))}
+            </ul>
+            {p.pix?.link ? <Link href={p.pix.link} className="btn w-full">Pagar com Pix</Link> : null}
+            {p.pix?.status === "pago" ? <p className="text-xs font-bold text-ok">Pix confirmado. Obrigado!</p> : null}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 function AbaCompras({ dados }: { dados: DadosConta }) {
   if (dados.comprasOcultas) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Por segurança, suas compras aparecem depois que ativarmos a confirmação por WhatsApp. Em breve!</p>;
-  if (dados.compras.length === 0) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Nenhuma compra encontrada.</p>;
+  if (dados.compras.length === 0) return <p className="border border-borda bg-painel p-8 text-center text-fraco">Nenhuma compra nos últimos 12 meses.</p>;
   return (
+    <div className="space-y-3">
+    <p className="text-xs font-bold uppercase tracking-widest text-fraco">Suas compras nos últimos 12 meses</p>
     <ul className="grid items-start gap-3 xl:grid-cols-2">
       {dados.compras.map((c) => (
         <li key={c.id} className="border border-borda bg-painel">
@@ -400,6 +514,7 @@ function AbaCompras({ dados }: { dados: DadosConta }) {
         </li>
       ))}
     </ul>
+    </div>
   );
 }
 
@@ -530,7 +645,7 @@ function AbaAjustes({ dados }: { dados: DadosConta }) {
 
 function Cartao({ icone, titulo, texto, breve, children }: { icone: string; titulo: string; texto: string; breve?: boolean; children?: React.ReactNode }) {
   return (
-    <section className="space-y-3 border border-borda bg-painel p-4">
+    <section className="space-y-3 border border-borda bg-painel p-4 motion-safe:transition motion-safe:duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-texto text-white"><Icone d={icone} /></span>
@@ -566,48 +681,73 @@ function AbaVantagens({ dados }: { dados: DadosConta }) {
       setCopiado(false);
     }
   }
+  const grupo = linkGrupoVip(dados.nivel.nome);
+  const corNivel = COR_NIVEL[dados.nivel.nome] ?? "#111111";
   return (
-    <div className="grid items-start gap-3 xl:grid-cols-2">
-      {linkGrupoVip(dados.nivel.nome) ? (
-        <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo={`Grupo VIP ${dados.nivel.nome}`} texto={`Você é ${dados.nivel.nome}! Entre no grupo VIP ${dados.nivel.nome} da Seleto, no WhatsApp.`}>
-          <a href={linkGrupoVip(dados.nivel.nome)!} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar no grupo VIP {dados.nivel.nome}</a>
-        </Cartao>
-      ) : null}
-
-      <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Lista VIP" texto="Entre no grupo VIP da Seleto e receba ofertas e novidades antes de todo mundo.">
-        {dados.vipLink ? (
-          <a href={dados.vipLink} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar na lista VIP</a>
-        ) : (
-          <p className="text-xs text-fraco">A lista VIP está fechada no momento. Avisaremos quando abrir.</p>
-        )}
-      </Cartao>
-
-      <Cartao icone="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" titulo="Indique um amigo" texto="Quem indica ganha cashback quando o amigo faz a primeira compra." breve>
-        <div className="flex items-center justify-between gap-3 bg-tenue px-3 py-2">
-          <span className="font-mono text-lg font-black tracking-wider">{dados.codigoIndicacao}</span>
-          <button onClick={copiar} className="text-xs font-bold uppercase underline underline-offset-4">{copiado ? "Copiado!" : "Copiar"}</button>
-        </div>
-        <a href={`https://wa.me/?text=${encodeURIComponent(mensagem)}`} target="_blank" rel="noopener noreferrer" className="btn-claro w-full">Enviar pelo WhatsApp</a>
-      </Cartao>
-
-      <Cartao icone="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20v.01M20 20v.01" titulo="QR no caixa" texto="Mostre o QR no celular e o vendedor aplica seu cashback sem digitar nada." breve>
-        {qr ? (
-          <div className="flex flex-col items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qr} alt="QR code para o caixa" width={180} height={180} className="border border-borda" />
-            <p className="text-xs text-fraco">Vale por 10 minutos. Por enquanto é uma demonstração.</p>
+    <div className="space-y-4">
+      {/* 6) Cartão Seleto digital */}
+      <section className="relative overflow-hidden p-6 text-white" style={{ background: `linear-gradient(135deg, #111111 55%, ${corNivel})` }}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/70">Cartão Seleto</p>
+            <p className="titulao mt-3 text-3xl">{dados.nome}</p>
+            <p className="mt-1 text-sm text-white/80">Nível <b className="text-white">{dados.nivel.nome}</b> · código {dados.codigoIndicacao}</p>
           </div>
-        ) : (
-          <button onClick={mostrarQr} className="btn-claro w-full">Mostrar meu QR</button>
-        )}
-        {erroQr ? <p className="text-xs text-promo">{erroQr}</p> : null}
-      </Cartao>
+          <span className="px-3 py-1 text-xs font-black uppercase tracking-wide text-texto" style={{ background: dados.nivel.nome === "Cliente" ? "#ffffff" : corNivel, color: dados.nivel.nome === "Cliente" ? "#111111" : "#ffffff" }}>{dados.nivel.nome}</span>
+        </div>
+        <div className="mt-5">
+          {qr ? (
+            <div className="inline-flex flex-col items-center gap-2 bg-white p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qr} alt="QR code do Cartão Seleto" width={160} height={160} />
+              <p className="max-w-[160px] text-center text-[10px] text-fraco">Vale por 10 minutos. O uso no caixa chega em breve.</p>
+            </div>
+          ) : (
+            <button onClick={mostrarQr} className="bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-texto">Mostrar meu QR</button>
+          )}
+          {erroQr ? <p className="mt-2 text-xs text-destaque">{erroQr}</p> : null}
+        </div>
+      </section>
 
-      <Cartao icone="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s1.5-2 4-2 4 2 8 2 4-2 4-2M2 21h20M7 11V7M12 11V7M17 11V7M7 4v.01M12 4v.01M17 4v.01" titulo="Presente de aniversário" texto="No mês do seu aniversário você ganha um cashback de presente, automático." breve />
+      <div className="grid items-start gap-3 xl:grid-cols-2">
+        {grupo ? (
+          <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo={`Grupo VIP ${dados.nivel.nome}`} texto={`Você é ${dados.nivel.nome}! Entre no grupo VIP ${dados.nivel.nome} da Seleto, no WhatsApp.`}>
+            <a href={grupo} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar no grupo VIP {dados.nivel.nome}</a>
+          </Cartao>
+        ) : dados.vipLink ? (
+          <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Lista VIP" texto="Entre no grupo VIP da Seleto e receba ofertas e novidades antes de todo mundo.">
+            <a href={dados.vipLink} target="_blank" rel="noopener noreferrer" className="btn w-full">Entrar na lista VIP</a>
+          </Cartao>
+        ) : null}
 
-      <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Avaliou, ganhou R$ 50 de cashback" texto="Avalie sua compra da Seleto no Google e ganhe R$ 50 de cashback. A loja confere a sua avaliação e libera o valor para você.">
-        {LINK_AVALIACAO_GOOGLE ? <a href={LINK_AVALIACAO_GOOGLE} target="_blank" rel="noopener noreferrer" className="btn-claro w-full">Avaliar no Google</a> : null}
-      </Cartao>
+        <Cartao icone="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z" titulo="Avaliou, ganhou R$ 50 de cashback" texto="Avalie sua compra da Seleto no Google e ganhe R$ 50 de cashback. A loja confere a sua avaliação e libera o valor para você.">
+          {LINK_AVALIACAO_GOOGLE ? (
+            <a href={LINK_AVALIACAO_GOOGLE} target="_blank" rel="noopener noreferrer" className="btn-claro w-full">Avaliar no Google</a>
+          ) : linkWhatsappDaLoja("Américas", "Olá! Quero avaliar a Seleto no Google e ganhar o cashback. Pode me mandar o link?") ? (
+            <a href={linkWhatsappDaLoja("Américas", "Olá! Quero avaliar a Seleto no Google e ganhar o cashback. Pode me mandar o link?")!} target="_blank" rel="noopener noreferrer" className="btn-claro w-full">Pedir o link pelo WhatsApp</a>
+          ) : null}
+        </Cartao>
+      </div>
+
+      {/* 3) o que ainda não começou fica junto, sem poluir */}
+      <section className="border border-dashed border-borda bg-painel p-4">
+        <p className="text-xs font-black uppercase tracking-widest text-fraco">Chegando em breve</p>
+        <ul className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <li>
+            <b>Indique um amigo</b>
+            <span className="block text-xs text-fraco">Quem indica ganha cashback quando o amigo faz a primeira compra.</span>
+            <span className="mt-2 flex flex-wrap items-center gap-3">
+              <span className="font-mono text-sm font-black tracking-wider">{dados.codigoIndicacao}</span>
+              <button onClick={copiar} className="text-xs font-bold uppercase underline underline-offset-4">{copiado ? "Copiado!" : "Copiar"}</button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(mensagem)}`} target="_blank" rel="noopener noreferrer" className="text-xs font-bold uppercase underline underline-offset-4">Enviar</a>
+            </span>
+          </li>
+          <li>
+            <b>Presente de aniversário</b>
+            <span className="block text-xs text-fraco">No mês do seu aniversário você ganha um cashback de presente.</span>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
