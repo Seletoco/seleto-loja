@@ -2,11 +2,14 @@
  * Cotação de frete pela API dos Correios (CWS) — preço e prazo de PAC e SEDEX com contrato.
  *
  * LIGA SOZINHA quando as variáveis de ambiente existem (as credenciais são do CONTRATO da loja com os Correios):
- *   CORREIOS_USUARIO, CORREIOS_CODIGO_ACESSO, CORREIOS_CARTAO_POSTAGEM, CORREIOS_CONTRATO
- *   (opcionais: CORREIOS_DR = diretoria regional; CEP_ORIGEM para trocar o CEP de origem)
+ *   CORREIOS_USUARIO (login do Meu Correios), CORREIOS_CODIGO_ACESSO (código de acesso a APIs gerado no CWS, em "Gestão de acesso a API's"),
+ *   CORREIOS_CARTAO_POSTAGEM, CORREIOS_CONTRATO e CORREIOS_DR (número da diretoria regional do contrato: o manual da API Preço
+ *   exige o nuDR sempre que o contrato é informado). Opcional: CEP_ORIGEM para trocar o CEP de origem.
+ * O contrato precisa ter o serviço 38202 (API PREÇOS) vinculado ao cartão de postagem.
  * Sem elas, `/api/frete` devolve a estimativa de exemplo.
  *
- * NÃO FOI TESTADA contra a API real (sem credenciais aqui). Foi escrita de forma defensiva: qualquer resposta fora do
+ * Rotas conferidas com o manual oficial (GET /preco/v1/nacional/{coProduto} e GET /prazo/v1/nacional/{coProduto}), mas NÃO testada
+ * contra a API real (sem credenciais aqui). Foi escrita de forma defensiva: qualquer resposta fora do
  * esperado vira erro, e a rota cai na estimativa de exemplo avisando — nunca mostra preço inventado como se fosse dos
  * Correios. Confira com a primeira cotação real.
  */
@@ -23,7 +26,7 @@ export const CEP_ORIGEM_PADRAO = "22631004";
 export const cepDeOrigem = (): string => (process.env.CEP_ORIGEM ?? CEP_ORIGEM_PADRAO).replace(/\D/g, "") || CEP_ORIGEM_PADRAO;
 
 export const correiosConfigurado = (): boolean =>
-  Boolean(process.env.CORREIOS_USUARIO && process.env.CORREIOS_CODIGO_ACESSO && process.env.CORREIOS_CARTAO_POSTAGEM && process.env.CORREIOS_CONTRATO);
+  Boolean(process.env.CORREIOS_USUARIO && process.env.CORREIOS_CODIGO_ACESSO && process.env.CORREIOS_CARTAO_POSTAGEM && process.env.CORREIOS_CONTRATO && process.env.CORREIOS_DR);
 
 let guardado: { token: string; ate: number } | null = null;
 
@@ -64,7 +67,7 @@ export async function cotarNosCorreios(cepDestino: string, emb: Embalagem): Prom
         comprimento: String(Math.ceil(emb.comprimento)), largura: String(Math.ceil(emb.largura)), altura: String(Math.ceil(emb.altura)),
         nuContrato: String(process.env.CORREIOS_CONTRATO),
       });
-      if (process.env.CORREIOS_DR) preco.set("nuDR", process.env.CORREIOS_DR);
+      preco.set("nuDR", String(process.env.CORREIOS_DR));
       const prazo = new URLSearchParams({ cepOrigem: origem, cepDestino: destino });
 
       const [rp, rz] = await Promise.all([
