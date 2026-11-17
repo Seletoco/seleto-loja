@@ -38,6 +38,36 @@ export async function pdvnetDosPedidos(numeros: number[]): Promise<Record<number
   }
 }
 
+/** Liberação automática ligada? PDVNET_AUTO_LIBERAR=1. */
+export const liberacaoAutomatica = (env: Record<string, string | undefined> = process.env) => env.PDVNET_AUTO_LIBERAR === "1";
+
+/** Atraso (min) entre o pagamento e o PDVNet poder baixar o pedido: dá tempo de cancelar/devolver. PDVNET_AUTO_ATRASO_MIN, 0 a 1440, padrão 10. */
+export function atrasoDaLiberacao(env: Record<string, string | undefined> = process.env): number {
+  const n = Number(env.PDVNET_AUTO_ATRASO_MIN);
+  return env.PDVNET_AUTO_ATRASO_MIN !== undefined && env.PDVNET_AUTO_ATRASO_MIN !== "" && Number.isFinite(n) && n >= 0 && n <= 1440 ? Math.round(n) : 10;
+}
+
+/**
+ * Chamada assim que um pagamento online é confirmado. Se a liberação automática está ligada, libera o pedido para o PDVNet
+ * (daqui a `atrasoDaLiberacao` minutos). Só libera pedido pago, não cancelado e, na entrega, com CPF; nunca mexe em pedido já liberado.
+ * Falha em silêncio (a liberação manual no admin continua valendo): nunca atrapalha o pagamento.
+ */
+export async function liberarAutomaticamente(pedidoId: string): Promise<boolean> {
+  if (!liberacaoAutomatica()) return false;
+  try {
+    const { rowCount } = await db().query(
+      `UPDATE loja.pedidos SET pdvnet_liberado_em = now() + make_interval(mins => $2), atualizado_em = now()
+        WHERE id = $1::uuid AND pdvnet_liberado_em IS NULL AND status <> 'cancelado' AND status <> 'aguardando_pagamento'
+          AND pagamento_status = 'confirmado' AND (entrega_tipo = 'retirada_loja' OR cliente_cpf IS NOT NULL)`,
+      [pedidoId, atrasoDaLiberacao()],
+    );
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    console.error("[pdvnet] liberação automática falhou:", e instanceof Error ? e.message.slice(0, 120) : "erro");
+    return false;
+  }
+}
+
 export type ResultadoLiberacao = { ok: true; liberadoEm: string | null } | { ok: false; erro: string };
 
 /** Libera (ou tira a liberação, se o PDVNet ainda não baixou) um pedido. */

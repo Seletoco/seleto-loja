@@ -4,6 +4,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { liberarAutomaticamente } from "./pdvnet-pedidos";
 import { cobrarCartaoNaRede, configDaRede, consultarPixNaRede, criarPixNaRede, devolverPixNaRede, parcelasMaximas, podeCobrar, referenciaDoPedido, validarCartao, type EntradaCartao, type StatusPagamento } from "./rede";
 
 /** Quanto tempo o QR Code Pix vale (minutos). Padrão 2 h; pode mudar com REDE_PIX_MINUTOS (15 a 1440). */
@@ -117,6 +118,7 @@ async function conferir(l: Linha, forcar = false): Promise<Linha> {
     await banco.query(`UPDATE loja.pagamentos SET conferido_em = now(), status = CASE WHEN $2 THEN 'expirado' ELSE status END, atualizado_em = now() WHERE id = $1 AND status = 'pendente'`, [l.id, Boolean(venceu)]);
     return { ...l, conferido_em: new Date(), status: venceu ? "expirado" : l.status };
   }
+  let virouPago = false;
   const cli = await banco.connect();
   try {
     await cli.query("BEGIN");
@@ -125,7 +127,8 @@ async function conferir(l: Linha, forcar = false): Promise<Linha> {
         WHERE id = $1 AND status = 'pendente'`,
       [l.id, r.status, r.codigo],
     );
-    if (rowCount && r.status === "pago") {
+    virouPago = Boolean(rowCount) && r.status === "pago";
+    if (virouPago) {
       await cli.query(
         `UPDATE loja.pedidos SET pagamento_status = 'confirmado', status = CASE WHEN status = 'aguardando_pagamento' THEN 'pago' ELSE status END, atualizado_em = now() WHERE id = $1`,
         [l.pedido_id],
@@ -138,6 +141,7 @@ async function conferir(l: Linha, forcar = false): Promise<Linha> {
   } finally {
     cli.release();
   }
+  if (virouPago) await liberarAutomaticamente(l.pedido_id);
   return { ...l, status: r.status, conferido_em: new Date(), pago_em: r.status === "pago" ? new Date() : l.pago_em };
 }
 
@@ -306,6 +310,7 @@ export async function pagarComCartao(token: string, entrada: EntradaCartao): Pro
         [l.pedido_id, referencia],
       );
       await cli.query("COMMIT");
+      await liberarAutomaticamente(l.pedido_id);
       return { ok: true };
     }
     if (r.semAcesso) {
