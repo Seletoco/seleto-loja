@@ -113,13 +113,23 @@ function BlocoPdvnet({ pedido, aoMudar }: { pedido: PedidoSalvo; aoMudar: (p: No
 
   return (
     <div className="space-y-1 border-t border-borda pt-2">
-      <p className={`text-xs font-bold ${n?.notaNumero || n?.status === "31" ? "text-ok" : "text-fraco"}`}>
-        {n?.notaNumero ? `Nota fiscal ${n.notaNumero} emitida` : n?.status === "31" ? "Faturado no PDVNet" : n?.baixadoEm ? "PDVNet já baixou o pedido" : liberado ? "Liberado: aguardando o PDVNet baixar" : "PDVNet: ainda não liberado"}
+      <p suppressHydrationWarning className={`text-xs font-bold ${n?.notaNumero || n?.status === "31" ? "text-ok" : "text-fraco"}`}>
+        {n?.notaNumero
+          ? `Nota fiscal ${n.notaNumero} emitida`
+          : n?.status === "31"
+            ? "Faturado no PDVNet"
+            : n?.baixadoEm
+              ? "PDVNet já baixou o pedido"
+              : liberado && new Date(n!.liberadoEm!) > new Date()
+                ? `Liberação automática: o PDVNet poderá baixar às ${new Date(n!.liberadoEm!).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}`
+                : liberado
+                  ? "Liberado: aguardando o PDVNet baixar"
+                  : "PDVNet: ainda não liberado"}
       </p>
       {erro ? <p className="text-xs text-promo">{erro}</p> : null}
       {!n?.baixadoEm ? (
         <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar(!liberado)}>
-          {ocupado ? "Salvando…" : liberado ? "Tirar a liberação" : "Liberar para o PDVNet (nota fiscal)"}
+          {ocupado ? "Salvando…" : liberado ? "Tirar a liberação (não faturar)" : "Liberar para o PDVNet (nota fiscal)"}
         </button>
       ) : null}
     </div>

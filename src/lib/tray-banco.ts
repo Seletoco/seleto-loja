@@ -19,11 +19,11 @@ const COLUNAS = `p.numero::text, p.criado_em, p.atualizado_em, p.status, p.clien
 
 export const bancoTray: BancoTray = {
   async liberados() {
-    const { rows } = await db().query<LinhaPedido>(`SELECT ${COLUNAS} FROM loja.pedidos p WHERE p.pdvnet_liberado_em IS NOT NULL ORDER BY p.numero DESC LIMIT 500`);
+    const { rows } = await db().query<LinhaPedido>(`SELECT ${COLUNAS} FROM loja.pedidos p WHERE p.pdvnet_liberado_em IS NOT NULL AND p.pdvnet_liberado_em <= now() AND (p.status <> 'cancelado' OR p.pdvnet_baixado_em IS NOT NULL) ORDER BY p.numero DESC LIMIT 500`);
     return rows;
   },
   async liberado(numero) {
-    const { rows } = await db().query<LinhaPedido>(`SELECT ${COLUNAS} FROM loja.pedidos p WHERE p.numero = $1 AND p.pdvnet_liberado_em IS NOT NULL`, [numero]);
+    const { rows } = await db().query<LinhaPedido>(`SELECT ${COLUNAS} FROM loja.pedidos p WHERE p.numero = $1 AND p.pdvnet_liberado_em IS NOT NULL AND p.pdvnet_liberado_em <= now() AND (p.status <> 'cancelado' OR p.pdvnet_baixado_em IS NOT NULL)`, [numero]);
     return rows[0] ?? null;
   },
   async itens(numero) {
