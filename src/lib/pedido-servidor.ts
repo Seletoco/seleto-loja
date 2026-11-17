@@ -2,28 +2,39 @@
  * Validação do pedido NO SERVIDOR. O navegador manda só o que o cliente escolheu; preços, total e forma de pagamento
  * são recalculados aqui (o cliente nunca decide quanto paga). Função pura, sem banco: testável.
  */
+import { cpfValido, soDigitos } from "./cpf";
 import { formaDaEntrega } from "./pagamento";
 import { LOJAS } from "./lojas";
 import type { Produto } from "./tipos";
 
 export interface PedidoRecebido {
   itens?: { ref?: unknown; tamanho?: unknown; quantidade?: unknown }[];
-  cliente?: { nome?: unknown; telefone?: unknown; email?: unknown };
-  entrega?: { tipo?: unknown; loja?: unknown; endereco?: unknown; servico?: unknown; prazoDias?: unknown; freteExemplo?: unknown };
+  cliente?: { nome?: unknown; telefone?: unknown; email?: unknown; cpf?: unknown };
+  entrega?: { tipo?: unknown; loja?: unknown; endereco?: unknown; enderecoDet?: unknown; servico?: unknown; prazoDias?: unknown; freteExemplo?: unknown };
   frete?: unknown;
   cashback?: { usado?: unknown; telefone?: unknown } | null;
 }
 
 export interface PedidoValidado {
   itens: { ref: string; nome: string; cor: string; tamanho: string; quantidade: number; preco: number }[];
-  cliente: { nome: string; telefone: string; email: string | null };
-  entrega: { tipo: "retirada_loja" | "entrega_combinada"; lojaId: number | null; endereco: string | null; servico: string | null; prazoDias: number | null; freteEstimado: boolean };
+  cliente: { nome: string; telefone: string; email: string | null; /** só dígitos; uso fiscal */ cpf: string | null };
+  entrega: { tipo: "retirada_loja" | "entrega_combinada"; lojaId: number | null; endereco: string | null; /** endereço por partes (nota fiscal) */ enderecoDet: EnderecoDet | null; servico: string | null; prazoDias: number | null; freteEstimado: boolean };
   pagamentoMetodo: "pagar_na_loja" | "combinar_whatsapp";
   subtotal: number;
   frete: number;
   cashbackUsado: number;
   cashbackTelefone: string | null;
   total: number;
+}
+
+export interface EnderecoDet {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
 }
 
 const FRETE_MAX = 500; // teto de sanidade: a loja confirma o frete com o cliente antes de cobrar
@@ -58,10 +69,16 @@ export function validarPedido(
   if (telefone.length < 10 || telefone.length > 11) return { erro: "Informe o celular com DDD." };
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { erro: "E-mail inválido." };
 
+  // CPF: obrigatório para entrega (a nota fiscal exige), opcional na retirada; se vier, tem que ser válido.
+  const cpfDigitado = soDigitos(texto(r.cliente?.cpf, 20));
+  if (cpfDigitado && !cpfValido(cpfDigitado)) return { erro: "CPF inválido. Confira os 11 números." };
+  const cpf = cpfDigitado || null;
+
   const tipo = r.entrega?.tipo;
   if (tipo !== "retirada_loja" && tipo !== "entrega_combinada") return { erro: "Escolha retirada na loja ou entrega." };
   let lojaId: number | null = null;
   let endereco: string | null = null;
+  let enderecoDet: EnderecoDet | null = null;
   let servico: string | null = null;
   let prazoDias: number | null = null;
   let frete = 0;
@@ -78,6 +95,20 @@ export function validarPedido(
     frete = arred(Number(r.frete));
     freteEstimado = r.entrega?.freteExemplo === true;
     if (endereco.length < 10) return { erro: "Informe o endereço completo." };
+    if (!cpf) return { erro: "Informe o CPF: ele é necessário para a nota fiscal da entrega." };
+    const d = (r.entrega?.enderecoDet ?? {}) as Record<string, unknown>;
+    enderecoDet = {
+      cep: soDigitos(texto(d.cep, 12)),
+      logradouro: texto(d.logradouro, 120),
+      numero: texto(d.numero, 20),
+      complemento: texto(d.complemento, 60),
+      bairro: texto(d.bairro, 80),
+      cidade: texto(d.cidade, 80),
+      uf: texto(d.uf, 2).toUpperCase(),
+    };
+    if (enderecoDet.cep.length !== 8 || enderecoDet.logradouro.length < 3 || !enderecoDet.numero || enderecoDet.cidade.length < 2 || !/^[A-Z]{2}$/.test(enderecoDet.uf)) {
+      return { erro: "Complete o endereço: CEP, rua, número, cidade e estado." };
+    }
     if (!(frete >= 0 && frete <= FRETE_MAX)) return { erro: "Frete inválido. Calcule o frete de novo." };
   }
 
@@ -90,8 +121,8 @@ export function validarPedido(
   return {
     pedido: {
       itens,
-      cliente: { nome, telefone, email: email || null },
-      entrega: { tipo, lojaId, endereco, servico, prazoDias, freteEstimado },
+      cliente: { nome, telefone, email: email || null, cpf },
+      entrega: { tipo, lojaId, endereco, enderecoDet, servico, prazoDias, freteEstimado },
       pagamentoMetodo: formaDaEntrega(tipo).id,
       subtotal,
       frete,

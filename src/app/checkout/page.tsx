@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCarrinho } from "@/lib/carrinho";
+import { cpfValido, formatarCpf } from "@/lib/cpf";
 import { dataBr, digitos, reais } from "@/lib/format";
 import { LOJAS } from "@/lib/lojas";
 import { EXIGIR_LOGIN } from "@/lib/modo";
@@ -30,6 +31,7 @@ export default function Checkout() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
   const [opcoesPix, setOpcoesPix] = useState<{ pix: boolean; cartao: boolean; teste: boolean }>({ pix: false, cartao: false, teste: false });
   const [meio, setMeio] = useState<"pix" | "cartao" | "loja">("pix");
   useEffect(() => {
@@ -184,7 +186,9 @@ export default function Checkout() {
     const tel = digitos(telefone);
     if (nome.trim().length < 3) return setErro("Informe seu nome completo.");
     if (tel.length < 10 || tel.length > 11) return setErro("Informe o celular com DDD.");
+    if (digitos(cpf) && !cpfValido(cpf)) return setErro("CPF inválido. Confira os 11 números.");
     if (entrega === "entrega_combinada") {
+      if (!cpfValido(cpf)) return setErro("Informe o CPF: ele é necessário para a nota fiscal da entrega.");
       if (!cepValido(cepDigitos)) return setErro("Informe o CEP para calcular o frete.");
       if (!opcaoEscolhida) return setErro("Escolha a forma de envio (PAC ou SEDEX).");
       if (logradouro.trim().length < 3 || !numeroEnd.trim() || cidade.trim().length < 2 || uf.trim().length !== 2) return setErro("Complete o endereço: rua, número, cidade e estado.");
@@ -219,8 +223,8 @@ export default function Checkout() {
     try {
       const r = await post("/api/pedidos", {
         itens: itens.map((i) => ({ ref: i.ref, tamanho: i.tamanho, quantidade: i.quantidade })),
-        cliente: pedido.cliente,
-        entrega: pedido.entrega,
+        cliente: { ...pedido.cliente, cpf: digitos(cpf) || null }, // o CPF vai só ao servidor (nota fiscal); não fica salvo neste navegador
+        entrega: entrega === "entrega_combinada" ? { ...pedido.entrega, enderecoDet: { cep: cepDigitos, logradouro: logradouro.trim(), numero: numeroEnd.trim(), complemento: complemento.trim(), bairro: bairro.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase() } } : pedido.entrega,
         frete: pedido.frete,
         cashback: pedido.cashback ?? null,
         pagamento: comPix ? "pix" : comCartao ? "cartao" : null,
@@ -272,6 +276,10 @@ export default function Checkout() {
           <input className="campo" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" />
           <input className="campo" placeholder="Celular com DDD" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} autoComplete="tel" />
           <input className="campo" placeholder="E-mail (opcional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          <div>
+            <input className="campo" placeholder={entrega === "entrega_combinada" ? "CPF (para a nota fiscal)" : "CPF na nota (opcional)"} inputMode="numeric" value={cpf} onChange={(e) => setCpf(formatarCpf(e.target.value))} autoComplete="off" />
+            <p className="mt-1 text-xs text-fraco">{entrega === "entrega_combinada" ? "Obrigatório para emitir a nota fiscal da entrega. " : ""}Usamos só para a nota fiscal e não aparece em nenhuma tela.</p>
+          </div>
         </Secao>
 
         <Secao titulo="2. Entrega">

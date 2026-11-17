@@ -13,21 +13,32 @@ export async function excedeuLimiteDePedidos(ip: string): Promise<boolean> {
   return false;
 }
 
+/** Grava o pedido. Se a coluna do CPF ainda não existe (migration 015 pendente), pedidos SEM CPF continuam funcionando; com CPF avisa. */
 export async function gravarPedido(p: PedidoValidado, contaId: string | null): Promise<number> {
+  try {
+    return await gravar(p, contaId, true);
+  } catch (e) {
+    if ((e as { code?: string }).code === "42703" && !p.cliente.cpf) return gravar(p, contaId, false);
+    throw e;
+  }
+}
+
+async function gravar(p: PedidoValidado, contaId: string | null, comCpf: boolean): Promise<number> {
   const cliente = await db().connect();
   try {
     await cliente.query("BEGIN");
     const { rows } = await cliente.query<{ id: string; numero: string }>(
       `INSERT INTO loja.pedidos
          (status, cliente_nome, cliente_telefone, cliente_email, entrega_tipo, loja_retirada_id, endereco, pagamento_metodo,
-          subtotal, desconto, frete, total, cashback_usado, cashback_telefone, entrega_servico, entrega_prazo_dias, frete_estimado, conta_id)
-       VALUES ('aguardando_pagamento', $1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, $16)
+          subtotal, desconto, frete, total, cashback_usado, cashback_telefone, entrega_servico, entrega_prazo_dias, frete_estimado, conta_id${comCpf ? ", cliente_cpf" : ""})
+       VALUES ('aguardando_pagamento', $1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13, $14, $15, $16${comCpf ? ", $17" : ""})
        RETURNING id::text, numero::text`,
       [
         p.cliente.nome, p.cliente.telefone, p.cliente.email, p.entrega.tipo, p.entrega.lojaId,
-        p.entrega.endereco ? JSON.stringify({ texto: p.entrega.endereco }) : null, p.pagamentoMetodo,
+        p.entrega.endereco ? JSON.stringify({ texto: p.entrega.endereco, ...(p.entrega.enderecoDet ?? {}) }) : null, p.pagamentoMetodo,
         p.subtotal, p.frete, p.total, p.cashbackUsado, p.cashbackTelefone, p.entrega.servico, p.entrega.prazoDias, p.entrega.freteEstimado,
         contaId,
+        ...(comCpf ? [p.cliente.cpf] : []),
       ],
     );
     for (const i of p.itens) {

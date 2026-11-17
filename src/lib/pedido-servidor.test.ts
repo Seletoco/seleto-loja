@@ -42,16 +42,43 @@ test("o teto de cashback arredonda para baixo (nunca passa de 20%)", () => {
   }
 });
 
-test("entrega em casa: pagamento combinado e frete validado", () => {
-  const e = { tipo: "entrega_combinada", endereco: "Rua A, 10 — Centro, Niterói/RJ — CEP 24000000", servico: "PAC", prazoDias: 5 };
-  const ok = validarPedido({ ...base, entrega: e, frete: 25.5 }, achar, 20);
+const CPF = "529.982.247-25"; // CPF válido de teste
+const det = { cep: "24000-000", logradouro: "Rua A", numero: "10", complemento: "ap 2", bairro: "Centro", cidade: "Niterói", uf: "rj" };
+
+test("entrega em casa: pagamento combinado, frete validado, CPF e endereço por partes", () => {
+  const e = { tipo: "entrega_combinada", endereco: "Rua A, 10 — Centro, Niterói/RJ — CEP 24000000", enderecoDet: det, servico: "PAC", prazoDias: 5 };
+  const cli = { ...base.cliente, cpf: CPF };
+  const ok = validarPedido({ ...base, cliente: cli, entrega: e, frete: 25.5 }, achar, 20);
   assert.ok("pedido" in ok);
   if ("pedido" in ok) {
     assert.equal(ok.pedido.pagamentoMetodo, "combinar_whatsapp");
     assert.equal(ok.pedido.total, 625.5);
+    assert.equal(ok.pedido.cliente.cpf, "52998224725");
+    assert.deepEqual(ok.pedido.entrega.enderecoDet, { cep: "24000000", logradouro: "Rua A", numero: "10", complemento: "ap 2", bairro: "Centro", cidade: "Niterói", uf: "RJ" });
   }
-  assert.ok("erro" in validarPedido({ ...base, entrega: e, frete: 99999 }, achar, 20));
-  assert.ok("erro" in validarPedido({ ...base, entrega: e, frete: -5 }, achar, 20));
+  assert.ok("erro" in validarPedido({ ...base, cliente: cli, entrega: e, frete: 99999 }, achar, 20));
+  assert.ok("erro" in validarPedido({ ...base, cliente: cli, entrega: e, frete: -5 }, achar, 20));
+});
+
+test("entrega exige CPF válido e endereço por partes completo", () => {
+  const e = { tipo: "entrega_combinada", endereco: "Rua A, 10 — Centro, Niterói/RJ — CEP 24000000", enderecoDet: det, servico: "PAC", prazoDias: 5 };
+  const semCpf = validarPedido({ ...base, entrega: e, frete: 20 }, achar, 20);
+  assert.ok("erro" in semCpf && /CPF/.test(semCpf.erro));
+  const cpfRuim = validarPedido({ ...base, cliente: { ...base.cliente, cpf: "111.111.111-11" }, entrega: e, frete: 20 }, achar, 20);
+  assert.ok("erro" in cpfRuim && /CPF/.test(cpfRuim.erro));
+  const semRua = validarPedido({ ...base, cliente: { ...base.cliente, cpf: CPF }, entrega: { ...e, enderecoDet: { ...det, logradouro: "" } }, frete: 20 }, achar, 20);
+  assert.ok("erro" in semRua && /endereço/i.test(semRua.erro));
+  const semDet = validarPedido({ ...base, cliente: { ...base.cliente, cpf: CPF }, entrega: { ...e, enderecoDet: undefined }, frete: 20 }, achar, 20);
+  assert.ok("erro" in semDet);
+});
+
+test("retirada: CPF é opcional, mas se vier tem que ser válido", () => {
+  const semCpf = validarPedido(base, achar, 20);
+  assert.ok("pedido" in semCpf);
+  if ("pedido" in semCpf) assert.equal(semCpf.pedido.cliente.cpf, null);
+  const comCpf = validarPedido({ ...base, cliente: { ...base.cliente, cpf: CPF } }, achar, 20);
+  assert.ok("pedido" in comCpf && comCpf.pedido.cliente.cpf === "52998224725");
+  assert.ok("erro" in validarPedido({ ...base, cliente: { ...base.cliente, cpf: "123" } }, achar, 20));
 });
 
 test("recusa produto inexistente, tamanho indisponível, quantidade ruim e dados faltando", () => {
