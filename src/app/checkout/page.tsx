@@ -104,7 +104,7 @@ export default function Checkout() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ cep: cepDigitos, itens: chaveItens.split(",").map((x) => ({ ref: x.split(":")[0], quantidade: Number(x.split(":")[1]) })) }),
           }),
-          fetch(`https://viacep.com.br/ws/${cepDigitos}/json/`).then((r) => r.json()).catch(() => null),
+          fetch(`/api/cep/${cepDigitos}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         ]);
         const j = await fr.json();
         if (cancelado) return;
@@ -117,7 +117,7 @@ export default function Checkout() {
         if (via && !via.erro) {
           setLogradouro((v) => v || via.logradouro || "");
           setBairro((v) => v || via.bairro || "");
-          setCidade((v) => v || via.localidade || "");
+          setCidade((v) => v || via.cidade || "");
           setUf((v) => v || via.uf || j.uf || "");
         } else if (fr.ok) {
           setUf((v) => v || j.uf || "");
