@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fileira } from "@/components/Fileira";
 import { MarcasEmDestaque } from "@/components/MarcasEmDestaque";
+import { BannerCampanha } from "@/components/BannerCampanha";
 import { Hero, type Slide } from "@/components/Hero";
+import { blackFridayAtiva } from "@/lib/modo";
 import { Reveal } from "@/components/Reveal";
 import { LOJAS, LINK_AVALIACAO_GOOGLE, linkWhatsappGeral, telefoneGeral } from "@/lib/lojas";
 import { jsonLd } from "@/lib/json-ld";
@@ -71,7 +73,10 @@ export default async function Home() {
   return (
     <div className="space-y-14 pb-4 sm:space-y-20">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(loja) }} />
-      <Hero slides={slides} />
+      <div>
+        {blackFridayAtiva() ? <BannerCampanha href="/produtos?promo=1&ordem=promo" alt="Black Friday: ver promoções" /> : null}
+        <Hero slides={slides} />
+      </div>
 
       {/* benefícios: cartões em cinza suave com ícone, bem visíveis; o do WhatsApp abre a conversa quando o número está configurado */}
       <section className="mx-auto grid max-w-[1500px] grid-cols-2 gap-3 px-4 sm:grid-cols-4">
