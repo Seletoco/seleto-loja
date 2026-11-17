@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
 import { garantirCatalogo, produtoPorRef } from "@/lib/catalogo";
 import { cepDeOrigem, correiosConfigurado, cotarNosCorreios } from "@/lib/correios";
+import { cotarNoMelhorEnvio, melhorEnvioConfigurado } from "@/lib/melhor-envio";
 import { cepValido, embalagemDoPedido, estimativaDeExemplo, ufDoCep, type OpcaoFrete } from "@/lib/frete";
 
 export interface RespostaFrete {
   cep: string;
   uf: string | null;
-  origem: "correios" | "exemplo";
+  origem: "melhorenvio" | "correios" | "exemplo";
   opcoes: OpcaoFrete[];
   /** Explica por que caiu na estimativa, quando for o caso. */
   aviso?: string;
 }
 
 const memoria = new Map<string, number[]>();
-const LIMITE_POR_HORA = 60; // protege a cota da API dos Correios
+const LIMITE_POR_HORA = 60; // protege a cota da API de frete
 
 /** Cotação de frete por CEP. Peso e caixa saem da categoria dos produtos, que o SERVIDOR consulta (não confia no cliente). */
 export async function POST(req: Request) {
@@ -41,6 +42,22 @@ export async function POST(req: Request) {
   const uf = ufDoCep(cep);
   if (!uf) return NextResponse.json({ erro: "Não reconhecemos este CEP." }, { status: 400 });
 
+  if (melhorEnvioConfigurado()) {
+    // Valor declarado = preço do catálogo (o servidor consulta; não confia no cliente).
+    const declarado = itensIn.reduce((s, i) => s + (produtoPorRef(String(i.ref ?? ""))?.preco ?? 0) * Math.min(20, Math.max(1, Number(i.quantidade) || 1)), 0);
+    try {
+      const opcoes = await cotarNoMelhorEnvio(cep, emb, declarado);
+      return NextResponse.json({ cep, uf, origem: "melhorenvio", opcoes } satisfies RespostaFrete);
+    } catch (e) {
+      console.error("[frete] Melhor Envio indisponível:", e instanceof Error ? e.message : e);
+      if (!correiosConfigurado()) {
+        return NextResponse.json({
+          cep, uf, origem: "exemplo", opcoes: estimativaDeExemplo(uf, emb, ufDoCep(cepDeOrigem()) ?? "RJ"),
+          aviso: "Não conseguimos consultar o frete agora. Valores estimados — a loja confirma o frete antes de cobrar.",
+        } satisfies RespostaFrete);
+      }
+    }
+  }
   if (correiosConfigurado()) {
     try {
       const opcoes = await cotarNosCorreios(cep, emb);
@@ -55,6 +72,6 @@ export async function POST(req: Request) {
   }
   return NextResponse.json({
     cep, uf, origem: "exemplo", opcoes: estimativaDeExemplo(uf, emb, ufDoCep(cepDeOrigem()) ?? "RJ"),
-    aviso: "Valores de exemplo (Correios ainda não configurado). A loja confirma o frete antes de cobrar.",
+    aviso: "Valores de exemplo (frete real ainda não configurado). A loja confirma o frete antes de cobrar.",
   } satisfies RespostaFrete);
 }
