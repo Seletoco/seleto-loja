@@ -28,6 +28,7 @@ export function Rodape() {
           <li>Entregamos para todo o Brasil</li>
           {tel && zap ? <li><a href={zap} target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp: {telefoneBonito(tel)}</a></li> : null}
           <li><Link href="/trocas" className="hover:text-white">Trocas e devoluções</Link></li>
+          <li><Link href="/termos" className="hover:text-white">Termos de compra</Link></li>
           <li><Link href="/privacidade" className="hover:text-white">Política de privacidade</Link></li>
         </Col>
       </div>
