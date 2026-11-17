@@ -78,12 +78,51 @@ export function PainelPedidos({ doBanco, pixLigado = false, cartaoLigado = false
             </ul>
             {p.cashback ? <p className="text-promo">Cashback a confirmar e dar baixa: {reais(p.cashback.usado)} ({telefoneBonito(p.cashback.telefone)})</p> : null}
             <p className="font-bold">{reais(p.total)}</p>
+            {doBanco ? <BlocoPdvnet pedido={p} aoMudar={(pdvnet) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, pdvnet } : x)))} /> : null}
             {doBanco ? <BlocoPix pedido={p} pixLigado={pixLigado} cartaoLigado={cartaoLigado} aoMudar={(c) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, cobranca: c, status: c.status === "pago" && x.status === "aguardando_pagamento" ? "pago" : c.status === "cancelado" && x.cobranca?.status === "pago" ? "cancelado" : x.status } : x)))} /> : null}
           </article>
         ))}
         </div>
       )}
     </section>
+  );
+}
+
+/** Nota fiscal pelo PDVNet: liberar o pedido para ele baixar (só depois de pago) e acompanhar o que ele devolveu. */
+function BlocoPdvnet({ pedido, aoMudar }: { pedido: PedidoSalvo; aoMudar: (p: NonNullable<PedidoSalvo["pdvnet"]> | undefined) => void }) {
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
+  const n = pedido.pdvnet;
+  const liberado = Boolean(n?.liberadoEm);
+  if (pedido.status === "cancelado" && !liberado) return null;
+
+  async function chamar(liberar: boolean) {
+    setOcupado(true);
+    setErro("");
+    try {
+      const r = await fetch("/api/admin/pedidos/pdvnet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero: pedido.numero, liberar }) });
+      const j = (await r.json()) as { liberadoEm?: string | null; erro?: string };
+      if (!r.ok) return setErro(j.erro ?? "Não foi possível.");
+      aoMudar(j.liberadoEm ? { liberadoEm: j.liberadoEm, baixadoEm: n?.baixadoEm ?? null, status: n?.status ?? null, venda: n?.venda ?? null, notaChave: n?.notaChave ?? null, notaNumero: n?.notaNumero ?? null } : undefined);
+    } catch {
+      setErro("Sem conexão.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1 border-t border-borda pt-2">
+      <p className={`text-xs font-bold ${n?.notaNumero || n?.status === "31" ? "text-ok" : "text-fraco"}`}>
+        {n?.notaNumero ? `Nota fiscal ${n.notaNumero} emitida` : n?.status === "31" ? "Faturado no PDVNet" : n?.baixadoEm ? "PDVNet já baixou o pedido" : liberado ? "Liberado: aguardando o PDVNet baixar" : "PDVNet: ainda não liberado"}
+      </p>
+      {erro ? <p className="text-xs text-promo">{erro}</p> : null}
+      {!n?.baixadoEm ? (
+        <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar(!liberado)}>
+          {ocupado ? "Salvando…" : liberado ? "Tirar a liberação" : "Liberar para o PDVNet (nota fiscal)"}
+        </button>
+      ) : null}
+    </div>
   );
 }
 

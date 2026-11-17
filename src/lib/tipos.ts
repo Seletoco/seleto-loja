@@ -35,5 +35,7 @@ export interface PedidoSalvo {
   total: number;
   status: string;
   /** Última cobrança online (Pix pela Rede), se houver. */
+  /** Ciclo do pedido no PDVNet (nota fiscal), se liberado. */
+  pdvnet?: { liberadoEm: string | null; baixadoEm: string | null; status: string | null; venda: string | null; notaChave: string | null; notaNumero: string | null };
   cobranca?: { token: string; metodo?: "pix" | "cartao"; status: string; valor: number; expiraEm: string | null; ambiente: string; pagoEm: string | null };
 }

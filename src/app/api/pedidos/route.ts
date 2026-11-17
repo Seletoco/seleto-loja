@@ -4,7 +4,7 @@ import { garantirCatalogo, produtoPorRef } from "@/lib/catalogo";
 import { limitarCashbackAoSaldo, validarPedido, type PedidoRecebido } from "@/lib/pedido-servidor";
 import { regrasCashback } from "@/lib/regras-servidor";
 import { excedeuLimiteDePedidos, gravarPedido } from "@/lib/pedido-banco";
-import { cashbacksDoCliente, ipDe } from "@/lib/conta-servidor";
+import { cashbacksDoCliente, hashCpf, ipDe } from "@/lib/conta-servidor";
 import { situacaoDoCashback } from "@/lib/regra-cashback";
 import { sessaoAtual } from "@/lib/sessao";
 import { EXIGIR_LOGIN } from "@/lib/modo";
@@ -33,6 +33,8 @@ export async function POST(req: Request) {
   const v = validarPedido(corpo, produtoPorRef, regras.tetoUsoPct);
   if ("erro" in v) return NextResponse.json({ erro: v.erro }, { status: 400 });
   let p = v.pedido;
+  // Conta ligada ao cadastro: o CPF informado tem que ser o da própria conta (ninguém faz pedido no CPF de outra pessoa).
+  if (p.cliente.cpf && s?.cpfHash && hashCpf(p.cliente.cpf) !== s.cpfHash) return NextResponse.json({ erro: "O CPF informado não é o da sua conta. Confira o número." }, { status: 400 });
   // Pix na hora: o cliente paga já no checkout (a cobrança sai do total que o servidor calculou).
   const formaOnline = (corpo as { pagamento?: unknown }).pagamento;
   const querPix = formaOnline === "pix";

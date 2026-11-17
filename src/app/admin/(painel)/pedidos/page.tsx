@@ -2,6 +2,7 @@ import Link from "next/link";
 import { bancoLigado } from "@/lib/db";
 import { listarPedidos, STATUS_PEDIDO } from "@/lib/pedidos-admin";
 import { cartaoAtivo, ultimasCobrancas } from "@/lib/pagamentos";
+import { pdvnetDosPedidos } from "@/lib/pdvnet-pedidos";
 import { configDaRede, podeCobrar } from "@/lib/rede";
 import { LOJAS } from "@/lib/lojas";
 import { reais } from "@/lib/format";
@@ -21,8 +22,8 @@ export default async function Pedidos({ searchParams }: { searchParams: Promise<
     numero: Number(q.numero) || undefined,
   };
   const lista = await listarPedidos(filtro);
-  const cobrancas = await ultimasCobrancas(lista.map((p) => p.numero));
-  const pedidos = lista.map((p) => (cobrancas[p.numero] ? { ...p, cobranca: { ...cobrancas[p.numero], emv: undefined } } : p));
+  const [cobrancas, notas] = await Promise.all([ultimasCobrancas(lista.map((p) => p.numero)), pdvnetDosPedidos(lista.map((p) => p.numero))]);
+  const pedidos = lista.map((p) => ({ ...p, ...(cobrancas[p.numero] ? { cobranca: { ...cobrancas[p.numero], emv: undefined } } : {}), ...(notas[p.numero] ? { pdvnet: notas[p.numero] } : {}) }));
   const total = lista.filter((p) => p.status !== "cancelado").reduce((s, p) => s + p.total, 0);
   const filtrando = Object.values(filtro).some(Boolean);
 
