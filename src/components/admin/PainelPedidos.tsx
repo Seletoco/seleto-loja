@@ -78,7 +78,7 @@ export function PainelPedidos({ doBanco, pixLigado = false, cartaoLigado = false
             </ul>
             {p.cashback ? <p className="text-promo">Cashback a confirmar e dar baixa: {reais(p.cashback.usado)} ({telefoneBonito(p.cashback.telefone)})</p> : null}
             <p className="font-bold">{reais(p.total)}</p>
-            {doBanco ? <BlocoPix pedido={p} pixLigado={pixLigado} cartaoLigado={cartaoLigado} aoMudar={(c) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, cobranca: c, status: c.status === "pago" && x.status === "aguardando_pagamento" ? "pago" : x.status } : x)))} /> : null}
+            {doBanco ? <BlocoPix pedido={p} pixLigado={pixLigado} cartaoLigado={cartaoLigado} aoMudar={(c) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, cobranca: c, status: c.status === "pago" && x.status === "aguardando_pagamento" ? "pago" : c.status === "cancelado" && x.cobranca?.status === "pago" ? "cancelado" : x.status } : x)))} /> : null}
           </article>
         ))}
         </div>
