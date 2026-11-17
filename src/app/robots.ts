@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
   // Fora do modo real (testes e prévias) nada é indexado.
   if (!MODO_REAL) return { rules: { userAgent: "*", disallow: "/" } };
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api/", "/conta", "/carrinho", "/checkout", "/pedido/"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api/", "/conta", "/carrinho", "/checkout", "/pedido/", "/pagar/"] },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

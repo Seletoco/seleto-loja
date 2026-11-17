@@ -8,7 +8,7 @@ const CHAVE = "seleto-loja:pedidos";
 const STATUS = ["aguardando_pagamento", "pago", "em_separacao", "pronto_retirada", "enviado", "entregue", "cancelado"];
 
 /** `doBanco`: pedidos vindos de loja.pedidos (banco ligado). Sem ele, o painel mostra os pedidos de teste deste navegador. */
-export function PainelPedidos({ doBanco }: { doBanco?: PedidoSalvo[] }) {
+export function PainelPedidos({ doBanco, pixLigado = false }: { doBanco?: PedidoSalvo[]; pixLigado?: boolean }) {
   const [pedidos, setPedidos] = useState<PedidoSalvo[]>(doBanco ?? []);
   const [aviso, setAviso] = useState("");
 
@@ -69,10 +69,82 @@ export function PainelPedidos({ doBanco }: { doBanco?: PedidoSalvo[] }) {
             </ul>
             {p.cashback ? <p className="text-promo">Cashback a confirmar e dar baixa: {reais(p.cashback.usado)} ({telefoneBonito(p.cashback.telefone)})</p> : null}
             <p className="font-bold">{reais(p.total)}</p>
+            {doBanco ? <BlocoPix pedido={p} pixLigado={pixLigado} aoMudar={(c) => setPedidos((lista) => lista.map((x) => (x.numero === p.numero ? { ...x, cobranca: c, status: c.status === "pago" && x.status === "aguardando_pagamento" ? "pago" : x.status } : x)))} /> : null}
           </article>
         ))}
         </div>
       )}
     </section>
+  );
+}
+
+const ROTULO_PIX: Record<string, string> = { pendente: "Pix gerado, aguardando pagamento", pago: "Pix PAGO", expirado: "Pix vencido", cancelado: "Pix cancelado", erro: "Pix com erro" };
+
+/** Cobrança Pix do pedido: gerar, mandar o link ao cliente e conferir na Rede. */
+function BlocoPix({ pedido, pixLigado, aoMudar }: { pedido: PedidoSalvo; pixLigado: boolean; aoMudar: (c: NonNullable<PedidoSalvo["cobranca"]>) => void }) {
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  const c = pedido.cobranca;
+  const link = c && typeof window !== "undefined" ? `${window.location.origin}/pagar/${c.token}` : "";
+  const fone = pedido.cliente.telefone.replace(/\D/g, "");
+  const zap = link && fone.length >= 10 ? `https://wa.me/${fone.startsWith("55") ? fone : `55${fone}`}?text=${encodeURIComponent(`Olá, ${pedido.cliente.nome.split(" ")[0]}! Seu pedido ${pedido.numero} da Seleto está confirmado. Para pagar por Pix (${reais(pedido.total)}), use este link: ${link}`)}` : null;
+
+  async function chamar(rota: string) {
+    setOcupado(true);
+    setErro("");
+    try {
+      const r = await fetch(rota, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero: pedido.numero }) });
+      const j = (await r.json()) as { cobranca?: NonNullable<PedidoSalvo["cobranca"]>; erro?: string };
+      if (j.cobranca) aoMudar(j.cobranca);
+      else setErro(j.erro ?? "Não foi possível.");
+    } catch {
+      setErro("Sem conexão.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  if (!c && !pixLigado) return null;
+  const pago = c?.status === "pago";
+  return (
+    <div className="space-y-2 border-t border-borda pt-2">
+      {c ? (
+        <p className={`text-xs font-bold ${pago ? "text-ok" : "text-fraco"}`}>
+          {ROTULO_PIX[c.status] ?? c.status}
+          {c.ambiente === "sandbox" ? " (teste)" : ""}
+        </p>
+      ) : null}
+      {erro ? <p className="text-xs text-promo">{erro}</p> : null}
+      <div className="flex flex-wrap gap-2">
+        {!pago && pedido.status !== "cancelado" && pixLigado && (!c || c.status !== "pendente") ? (
+          <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar("/api/admin/pagamentos/pix")}>
+            {ocupado ? "Gerando…" : "Gerar Pix"}
+          </button>
+        ) : null}
+        {c?.status === "pendente" ? (
+          <>
+            <button
+              className="btn-claro !px-3 !py-1.5 !text-xs"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(link);
+                  setCopiado(true);
+                  setTimeout(() => setCopiado(false), 2000);
+                } catch {
+                  /* sem permissão */
+                }
+              }}
+            >
+              {copiado ? "Link copiado" : "Copiar link"}
+            </button>
+            {zap ? <a className="btn-claro !px-3 !py-1.5 !text-xs" href={zap} target="_blank" rel="noopener noreferrer">Mandar no WhatsApp</a> : null}
+            <button className="btn-claro !px-3 !py-1.5 !text-xs" disabled={ocupado} onClick={() => chamar("/api/admin/pagamentos/conferir")}>
+              {ocupado ? "Conferindo…" : "Conferir pagamento"}
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
